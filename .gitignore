@@ -1,0 +1,36 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Environment
+.env
+.env.*
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Coverage
+htmlcov/
+.coverage
+
+# Audio
+*.wav
+*.mp3
+
+# Generated invoices
+invoices/
+
+# Replay cache
+replays/cache/
