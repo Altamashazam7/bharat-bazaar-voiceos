@@ -1,5 +1,6 @@
 from cart import Cart
 from order_parser import parse_order
+from intents import is_correction
 
 
 class OrderSession:
@@ -9,10 +10,13 @@ class OrderSession:
     def handle(self, text):
         result = parse_order(text)
 
-        self.cart.set_item(
-            result["product"],
-            result["quantity"]
-        )
+        product = result["product"]
+        quantity = result["quantity"]
+
+        if is_correction(text):
+            self.cart.set_item(product, quantity)
+        else:
+            self.cart.set_item(product, quantity)
 
         return self.cart.get_items()
 
@@ -20,6 +24,6 @@ class OrderSession:
 if __name__ == "__main__":
     session = OrderSession()
 
-    print(session.handle("do packet amul butter"))
-    print(session.handle("5 packet butter"))
-
+    print(session.handle("5 packet amul butter"))
+    print(session.handle("nahi 2 packet amul butter"))
+    print(session.handle("actually 4 packet amul butter"))
