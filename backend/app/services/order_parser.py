@@ -1,5 +1,5 @@
-from parser import find_product
-from quantity_parser import extract_quantity
+from backend.app.services.parser import find_product
+from backend.app.services.quantity_parser import extract_quantity
 
 
 def parse_order(text: str):
@@ -9,7 +9,7 @@ def parse_order(text: str):
     return {
         "product": product["product"],
         "quantity": quantity,
-        "confidence": product["confidence"]
+        "confidence": product["confidence"],
     }
 
 

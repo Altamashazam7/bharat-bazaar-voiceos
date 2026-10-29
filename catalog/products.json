@@ -26,27 +26,27 @@
     "aliases": ["tata salt", "salt", "namak"],
     "unit": "kg",
     "price_paise": 2800
+  },
+  {
+    "id": "amul_milk",
+    "name": "Amul Milk",
+    "aliases": [
+      "amul milk",
+      "milk",
+      "doodh"
+    ],
+    "unit": "packet",
+    "price_paise": 3000
+  },
+  {
+    "id": "parle_g",
+    "name": "Parle G",
+    "aliases": [
+      "parle g",
+      "parle",
+      "biscuit"
+    ],
+    "unit": "packet",
+    "price_paise": 1000
   }
-{
-  "id": "amul_milk",
-  "name": "Amul Milk",
-  "aliases": [
-    "amul milk",
-    "milk",
-    "doodh"
-  ],
-  "unit": "packet",
-  "price_paise": 3000
-}
-{
-  "id": "parle_g",
-  "name": "Parle G",
-  "aliases": [
-    "parle g",
-    "parle",
-    "biscuit"
-  ],
-  "unit": "packet",
-  "price_paise": 1000
-}
 ]

@@ -1,6 +1,6 @@
-from cart import Cart
-from order_parser import parse_order
-from intents import is_correction
+from backend.app.services.cart import Cart
+from backend.app.services.order_parser import parse_order
+from backend.app.services.intents import is_correction
 
 
 class OrderSession:
