@@ -1,0 +1,30 @@
+[
+  {
+    "id": "amul_butter",
+    "name": "Amul Butter",
+    "aliases": ["amul butter", "butter", "amul wala butter"],
+    "unit": "packet",
+    "price_paise": 5800
+  },
+  {
+    "id": "fortune_oil",
+    "name": "Fortune Oil",
+    "aliases": ["fortune oil", "fortune", "oil"],
+    "unit": "kg",
+    "price_paise": 18000
+  },
+  {
+    "id": "aashirvaad_atta",
+    "name": "Aashirvaad Atta",
+    "aliases": ["aashirvaad atta", "atta", "aata"],
+    "unit": "kg",
+    "price_paise": 5500
+  },
+  {
+    "id": "tata_salt",
+    "name": "Tata Salt",
+    "aliases": ["tata salt", "salt", "namak"],
+    "unit": "kg",
+    "price_paise": 2800
+  }
+]
