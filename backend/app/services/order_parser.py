@@ -4,6 +4,10 @@ from backend.app.services.quantity_parser import extract_quantity
 
 def parse_order(text: str):
     product = find_product(text)
+
+    if not product:
+        return None
+
     quantity = extract_quantity(text)
 
     return {
@@ -11,7 +15,3 @@ def parse_order(text: str):
         "quantity": quantity,
         "confidence": product["confidence"],
     }
-
-
-if __name__ == "__main__":
-    print(parse_order("do packet amul butter"))

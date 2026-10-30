@@ -1,5 +1,5 @@
-from rapidfuzz import process
 import json
+from rapidfuzz import process
 
 
 def load_catalog():
@@ -26,11 +26,10 @@ def find_product(text: str):
 
     match, score, index = result
 
+    if score < 80:
+        return None
+
     return {
         "product": choices[index][1]["name"],
         "confidence": score
     }
-
-
-if __name__ == "__main__":
-    print(find_product("amul butter"))
