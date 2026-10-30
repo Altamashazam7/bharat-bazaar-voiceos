@@ -33,4 +33,7 @@ def generate_invoice(cart):
     ) as f:
         f.write(output)
 
-    return output
+    return {
+        "text": output,
+        "total_items": total_items
+    }
