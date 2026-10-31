@@ -3,6 +3,7 @@ import shutil
 
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from backend.app.services.order_workflow import process_audio
 
@@ -19,6 +20,13 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Serve generated audio files
+app.mount(
+    "/audio",
+    StaticFiles(directory="tts_output"),
+    name="audio",
 )
 
 
@@ -55,6 +63,7 @@ async def transcribe_order(
     audio: UploadFile = File(...)
 ):
     upload_dir = Path("uploads")
+
     upload_dir.mkdir(exist_ok=True)
 
     file_path = upload_dir / audio.filename
@@ -65,8 +74,6 @@ async def transcribe_order(
             buffer
         )
 
-    result = process_audio(
+    return process_audio(
         str(file_path)
     )
-
-    return result
