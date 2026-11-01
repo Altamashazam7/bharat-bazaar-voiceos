@@ -1,11 +1,12 @@
 from pathlib import Path
 import shutil
 
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.app.services.order_workflow import process_audio
+from backend.app.services.evaluation import evaluate_dataset
 
 app = FastAPI(
     title="Bharat Bazaar VoiceOS"
@@ -77,3 +78,23 @@ async def transcribe_order(
     return process_audio(
         str(file_path)
     )
+
+
+@app.post("/demo")
+def run_demo():
+    """Process a bundled sample order without requiring an upload."""
+    project_root = Path(__file__).resolve().parents[3]
+    sample_path = project_root / "samples" / "eval" / "order1.m4a"
+    if not sample_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="The bundled demo audio is unavailable.",
+        )
+
+    return process_audio(str(sample_path))
+
+
+@app.post("/evaluate")
+def run_evaluation():
+    """Run the bundled audio benchmark and return per-sample cart results."""
+    return evaluate_dataset()

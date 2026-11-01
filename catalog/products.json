@@ -2,110 +2,497 @@
   {
     "id": "amul_butter",
     "name": "Amul Butter",
-    "aliases": [
-      "amul butter",
-      "amul wala butter",
-      "amool butter",
-      "amul makhan",
-      "butter"
-    ],
+    "category": "Dairy",
+    "aliases": ["amul butter", "amul wala butter", "amool butter", "amul makhan", "butter"],
     "unit": "packet",
     "price_paise": 5800
   },
   {
     "id": "fortune_oil",
     "name": "Fortune Oil",
-    "aliases": [
-      "fortune oil",
-      "fortune cooking oil",
-      "fortune tel",
-      "fortune",
-      "oil"
-    ],
-    "unit": "kg",
+    "category": "Oil",
+    "aliases": ["fortune oil", "fortune cooking oil", "fortune tel", "fortune", "oil"],
+    "unit": "litre",
     "price_paise": 18000
   },
   {
     "id": "aashirvaad_atta",
     "name": "Aashirvaad Atta",
-    "aliases": [
-      "aashirvaad atta",
-      "ashirvad atta",
-      "aashirvad atta",
-      "ashirvaad atta",
-      "ashirvad ata",
-      "aashirvaad ata",
-      "aashirwad atta",
-      "aashirwad aata",
-      "atta",
-      "aata"
-    ],
+    "category": "Atta",
+    "aliases": ["aashirvaad atta", "ashirvad atta", "aashirvad atta", "ashirvaad atta", "ashirvad ata", "aashirvaad ata", "aashirwad atta", "aashirwad aata", "atta", "aata"],
     "unit": "kg",
     "price_paise": 5500
   },
   {
     "id": "tata_salt",
     "name": "Tata Salt",
-    "aliases": [
-      "tata salt",
-      "tata namak",
-      "tata nun",
-      "salt",
-      "namak"
-    ],
+    "category": "Salt",
+    "aliases": ["tata salt", "tata namak", "tata nun", "salt", "namak"],
     "unit": "kg",
     "price_paise": 2800
   },
   {
     "id": "amul_milk",
     "name": "Amul Milk",
-    "aliases": [
-      "amul milk",
-      "amool milk",
-      "amul doodh",
-      "milk",
-      "doodh"
-    ],
-    "unit": "packet",
+    "category": "Dairy",
+    "aliases": ["amul milk", "amool milk", "amul doodh", "milk", "doodh"],
+    "unit": "litre",
     "price_paise": 3000
   },
   {
     "id": "parle_g",
     "name": "Parle G",
-    "aliases": [
-      "parle g",
-      "parle ji",
-      "parleji",
-      "parle gee",
-      "parle",
-      "biscuit"
-    ],
+    "category": "Biscuits",
+    "aliases": ["parle g", "parle ji", "parleji", "parle gee", "parle", "biscuit"],
     "unit": "packet",
     "price_paise": 1000
   },
   {
     "id": "maggi",
     "name": "Maggi",
-    "aliases": [
-      "maggi",
-      "maggie",
-      "magi",
-      "maggi noodles",
-      "maggie noodles"
-    ],
-    "unit": "packet"
+    "category": "Noodles",
+    "aliases": ["maggi", "maggie", "magi", "maggi noodles", "maggie noodles"],
+    "unit": "packet",
+    "price_paise": 1400
   },
   {
     "id": "good_day",
     "name": "Good Day",
-    "aliases": [
-      "good day biscuit",
-      "good day",
-      "goodday",
-      "good day cookies",
-      "gud day",
-      "gudday"
-    ],
-    "unit": "packet"
+    "category": "Biscuits",
+    "aliases": ["good day biscuit", "good day", "goodday", "good day cookies", "gud day", "gudday"],
+    "unit": "packet",
+    "price_paise": 3000
+  },
+  {
+    "id": "amul_curd",
+    "name": "Amul Masti Dahi",
+    "category": "Dairy",
+    "aliases": ["amul masti dahi", "amul dahi", "amul curd", "masti dahi", "dahi", "curd"],
+    "unit": "cup",
+    "price_paise": 3000
+  },
+  {
+    "id": "amul_paneer",
+    "name": "Amul Paneer",
+    "category": "Dairy",
+    "aliases": ["amul paneer", "amool paneer", "paneer"],
+    "unit": "packet",
+    "price_paise": 9000
+  },
+  {
+    "id": "amul_ghee",
+    "name": "Amul Ghee",
+    "category": "Dairy",
+    "aliases": ["amul ghee", "amool ghee", "ghee", "ghii"],
+    "unit": "litre",
+    "price_paise": 65000
+  },
+  {
+    "id": "amul_cheese",
+    "name": "Amul Cheese",
+    "category": "Dairy",
+    "aliases": ["amul cheese", "amool cheese", "cheese slices", "cheese"],
+    "unit": "packet",
+    "price_paise": 9000
+  },
+  {
+    "id": "amul_lassi",
+    "name": "Amul Lassi",
+    "category": "Dairy",
+    "aliases": ["amul lassi", "amool lassi", "lassi"],
+    "unit": "bottle",
+    "price_paise": 2000
+  },
+  {
+    "id": "tata_tea",
+    "name": "Tata Tea Premium",
+    "category": "Tea",
+    "aliases": ["tata tea premium", "tata tea", "tata chai", "tata cha", "tata premium"],
+    "unit": "packet",
+    "price_paise": 15000
+  },
+  {
+    "id": "red_label",
+    "name": "Red Label Tea",
+    "category": "Tea",
+    "aliases": ["red label tea", "brooke bond red label", "red label", "lal chai"],
+    "unit": "packet",
+    "price_paise": 16000
+  },
+  {
+    "id": "taj_mahal_tea",
+    "name": "Taj Mahal Tea",
+    "category": "Tea",
+    "aliases": ["taj mahal tea", "tajmahal tea", "taj mahal chai", "taj mahal"],
+    "unit": "packet",
+    "price_paise": 25000
+  },
+  {
+    "id": "wagh_bakri",
+    "name": "Wagh Bakri Tea",
+    "category": "Tea",
+    "aliases": ["wagh bakri tea", "vagh bakri", "bagh bakri chai", "wagh bakri"],
+    "unit": "packet",
+    "price_paise": 18000
+  },
+  {
+    "id": "nescafe_classic",
+    "name": "Nescafe Classic",
+    "category": "Coffee",
+    "aliases": ["nescafe classic", "nescafe", "nes cafe", "nescafe coffee"],
+    "unit": "jar",
+    "price_paise": 21000
+  },
+  {
+    "id": "bru_instant",
+    "name": "Bru Instant Coffee",
+    "category": "Coffee",
+    "aliases": ["bru instant coffee", "bru coffee", "bru", "brew coffee"],
+    "unit": "jar",
+    "price_paise": 18000
+  },
+  {
+    "id": "britannia_marie",
+    "name": "Britannia Marie Gold",
+    "category": "Biscuits",
+    "aliases": ["britannia marie gold", "marie gold", "brittania marie", "marie biscuit"],
+    "unit": "packet",
+    "price_paise": 3000
+  },
+  {
+    "id": "britannia_bourbon",
+    "name": "Britannia Bourbon",
+    "category": "Biscuits",
+    "aliases": ["britannia bourbon", "bourbon biscuit", "bourbon"],
+    "unit": "packet",
+    "price_paise": 3000
+  },
+  {
+    "id": "parle_hide_seek",
+    "name": "Parle Hide & Seek",
+    "category": "Biscuits",
+    "aliases": ["parle hide and seek", "parle hide n seek", "hide and seek biscuit", "hide seek"],
+    "unit": "packet",
+    "price_paise": 3500
+  },
+  {
+    "id": "britannia_5050",
+    "name": "Britannia 50-50",
+    "category": "Biscuits",
+    "aliases": ["britannia fifty fifty", "britannia 50 50", "fifty fifty biscuit", "50 50"],
+    "unit": "packet",
+    "price_paise": 3000
+  },
+  {
+    "id": "parle_monaco",
+    "name": "Parle Monaco",
+    "category": "Biscuits",
+    "aliases": ["parle monaco", "monaco biscuit", "monaco"],
+    "unit": "packet",
+    "price_paise": 2000
+  },
+  {
+    "id": "britannia_tiger",
+    "name": "Britannia Tiger",
+    "category": "Biscuits",
+    "aliases": ["britannia tiger", "tiger biscuit", "tiger glucose biscuit"],
+    "unit": "packet",
+    "price_paise": 1000
+  },
+  {
+    "id": "oreo",
+    "name": "Oreo",
+    "category": "Biscuits",
+    "aliases": ["oreo biscuit", "oreo biscuits", "oreo cookie", "oreo"],
+    "unit": "packet",
+    "price_paise": 3000
+  },
+  {
+    "id": "top_ramen",
+    "name": "Top Ramen",
+    "category": "Noodles",
+    "aliases": ["top ramen", "top ramen noodles", "topramen"],
+    "unit": "packet",
+    "price_paise": 1400
+  },
+  {
+    "id": "sunfeast_yippee",
+    "name": "Sunfeast YiPPee!",
+    "category": "Noodles",
+    "aliases": ["sunfeast yippee", "sunfeast yippie", "yippee noodles", "yippie"],
+    "unit": "packet",
+    "price_paise": 1400
+  },
+  {
+    "id": "saffola_oil",
+    "name": "Saffola Gold Oil",
+    "category": "Oil",
+    "aliases": ["saffola gold oil", "saffola oil", "saffola", "safola oil"],
+    "unit": "litre",
+    "price_paise": 19000
+  },
+  {
+    "id": "dhara_oil",
+    "name": "Dhara Mustard Oil",
+    "category": "Oil",
+    "aliases": ["dhara mustard oil", "dhara oil", "dhara sarson tel", "dhara"],
+    "unit": "litre",
+    "price_paise": 17000
+  },
+  {
+    "id": "fortune_sunflower_oil",
+    "name": "Fortune Sunflower Oil",
+    "category": "Oil",
+    "aliases": ["fortune sunflower oil", "fortune sunflower", "sunflower oil"],
+    "unit": "litre",
+    "price_paise": 16500
+  },
+  {
+    "id": "pillsbury_atta",
+    "name": "Pillsbury Chakki Atta",
+    "category": "Atta",
+    "aliases": ["pillsbury chakki atta", "pillsbury atta", "pillsbury aata"],
+    "unit": "kg",
+    "price_paise": 5800
+  },
+  {
+    "id": "fortune_atta",
+    "name": "Fortune Chakki Fresh Atta",
+    "category": "Atta",
+    "aliases": ["fortune chakki fresh atta", "fortune atta", "fortune aata"],
+    "unit": "kg",
+    "price_paise": 5200
+  },
+  {
+    "id": "india_gate_basmati",
+    "name": "India Gate Basmati Rice",
+    "category": "Rice",
+    "aliases": ["india gate basmati rice", "india gate rice", "india gate chawal", "india gate"],
+    "unit": "kg",
+    "price_paise": 15000
+  },
+  {
+    "id": "daawat_basmati",
+    "name": "Daawat Basmati Rice",
+    "category": "Rice",
+    "aliases": ["daawat basmati rice", "daawat rice", "daawat chawal", "dawat rice"],
+    "unit": "kg",
+    "price_paise": 14000
+  },
+  {
+    "id": "kohinoor_rice",
+    "name": "Kohinoor Basmati Rice",
+    "category": "Rice",
+    "aliases": ["kohinoor basmati rice", "kohinoor rice", "kohinoor chawal"],
+    "unit": "kg",
+    "price_paise": 16000
+  },
+  {
+    "id": "surf_excel",
+    "name": "Surf Excel Detergent",
+    "category": "Detergent",
+    "aliases": ["surf excel detergent", "surf excel", "surf exel", "surf powder"],
+    "unit": "packet",
+    "price_paise": 12000
+  },
+  {
+    "id": "tide_detergent",
+    "name": "Tide Detergent",
+    "category": "Detergent",
+    "aliases": ["tide detergent", "tide washing powder", "tide powder", "tide"],
+    "unit": "packet",
+    "price_paise": 11000
+  },
+  {
+    "id": "ariel_detergent",
+    "name": "Ariel Detergent",
+    "category": "Detergent",
+    "aliases": ["ariel detergent", "ariel washing powder", "ariel powder", "ariel"],
+    "unit": "packet",
+    "price_paise": 14000
+  },
+  {
+    "id": "ghari_detergent",
+    "name": "Ghari Detergent",
+    "category": "Detergent",
+    "aliases": ["ghari detergent", "ghadi detergent", "ghari washing powder", "ghari"],
+    "unit": "packet",
+    "price_paise": 6000
+  },
+  {
+    "id": "nirma_detergent",
+    "name": "Nirma Detergent",
+    "category": "Detergent",
+    "aliases": ["nirma detergent", "nirma washing powder", "nirma powder"],
+    "unit": "packet",
+    "price_paise": 5000
+  },
+  {
+    "id": "rin_bar",
+    "name": "Rin Detergent Bar",
+    "category": "Detergent",
+    "aliases": ["rin detergent bar", "rin bar", "rin sabun", "rin"],
+    "unit": "piece",
+    "price_paise": 2000
+  },
+  {
+    "id": "lux_soap",
+    "name": "Lux Soap",
+    "category": "Soap",
+    "aliases": ["lux soap", "lux bathing bar", "lux sabun", "lux"],
+    "unit": "piece",
+    "price_paise": 3000
+  },
+  {
+    "id": "lifebuoy_soap",
+    "name": "Lifebuoy Soap",
+    "category": "Soap",
+    "aliases": ["lifebuoy soap", "life buoy soap", "lifebuoy sabun", "lifebuoy"],
+    "unit": "piece",
+    "price_paise": 3000
+  },
+  {
+    "id": "dove_soap",
+    "name": "Dove Soap",
+    "category": "Soap",
+    "aliases": ["dove soap", "dove bathing bar", "dove sabun"],
+    "unit": "piece",
+    "price_paise": 5500
+  },
+  {
+    "id": "dettol_soap",
+    "name": "Dettol Soap",
+    "category": "Soap",
+    "aliases": ["dettol soap", "dettol bathing bar", "dettol sabun", "dettol"],
+    "unit": "piece",
+    "price_paise": 4000
+  },
+  {
+    "id": "santoor_soap",
+    "name": "Santoor Soap",
+    "category": "Soap",
+    "aliases": ["santoor soap", "santoor sabun", "santoor"],
+    "unit": "piece",
+    "price_paise": 3500
+  },
+  {
+    "id": "colgate_toothpaste",
+    "name": "Colgate Strong Teeth",
+    "category": "Toothpaste",
+    "aliases": ["colgate strong teeth", "colgate toothpaste", "colgate paste", "colgate"],
+    "unit": "tube",
+    "price_paise": 6000
+  },
+  {
+    "id": "pepsodent_toothpaste",
+    "name": "Pepsodent Toothpaste",
+    "category": "Toothpaste",
+    "aliases": ["pepsodent toothpaste", "pepsodent paste", "pepsodent"],
+    "unit": "tube",
+    "price_paise": 5500
+  },
+  {
+    "id": "sensodyne_toothpaste",
+    "name": "Sensodyne Toothpaste",
+    "category": "Toothpaste",
+    "aliases": ["sensodyne toothpaste", "sensodyne paste", "sensodyne"],
+    "unit": "tube",
+    "price_paise": 12000
+  },
+  {
+    "id": "dabur_red_toothpaste",
+    "name": "Dabur Red Toothpaste",
+    "category": "Toothpaste",
+    "aliases": ["dabur red toothpaste", "dabur red paste", "dabur red", "dabur lal paste"],
+    "unit": "tube",
+    "price_paise": 6500
+  },
+  {
+    "id": "closeup_toothpaste",
+    "name": "Closeup Toothpaste",
+    "category": "Toothpaste",
+    "aliases": ["closeup toothpaste", "close up toothpaste", "closeup paste", "closeup"],
+    "unit": "tube",
+    "price_paise": 6000
+  },
+  {
+    "id": "head_shoulders",
+    "name": "Head & Shoulders Shampoo",
+    "category": "Shampoo",
+    "aliases": ["head and shoulders shampoo", "head shoulders shampoo", "head and shoulders", "head shoulders"],
+    "unit": "bottle",
+    "price_paise": 18000
+  },
+  {
+    "id": "clinic_plus",
+    "name": "Clinic Plus Shampoo",
+    "category": "Shampoo",
+    "aliases": ["clinic plus shampoo", "clinic plus", "clinicplus shampoo"],
+    "unit": "bottle",
+    "price_paise": 12000
+  },
+  {
+    "id": "dove_shampoo",
+    "name": "Dove Shampoo",
+    "category": "Shampoo",
+    "aliases": ["dove shampoo", "dove hair shampoo"],
+    "unit": "bottle",
+    "price_paise": 22000
+  },
+  {
+    "id": "sunsilk_shampoo",
+    "name": "Sunsilk Shampoo",
+    "category": "Shampoo",
+    "aliases": ["sunsilk shampoo", "sun silk shampoo", "sunsilk"],
+    "unit": "bottle",
+    "price_paise": 16000
+  },
+  {
+    "id": "pantene_shampoo",
+    "name": "Pantene Shampoo",
+    "category": "Shampoo",
+    "aliases": ["pantene shampoo", "pantin shampoo", "pantene"],
+    "unit": "bottle",
+    "price_paise": 20000
+  },
+  {
+    "id": "vim_dishwash",
+    "name": "Vim Dishwash Liquid",
+    "category": "Cleaning Products",
+    "aliases": ["vim dishwash liquid", "vim liquid", "vim dish wash", "vim"],
+    "unit": "bottle",
+    "price_paise": 9000
+  },
+  {
+    "id": "harpic_cleaner",
+    "name": "Harpic Toilet Cleaner",
+    "category": "Cleaning Products",
+    "aliases": ["harpic toilet cleaner", "harpic cleaner", "harpic", "harpic bathroom"],
+    "unit": "bottle",
+    "price_paise": 11000
+  },
+  {
+    "id": "lizol_cleaner",
+    "name": "Lizol Floor Cleaner",
+    "category": "Cleaning Products",
+    "aliases": ["lizol floor cleaner", "lizol cleaner", "lizol", "lizol pochha"],
+    "unit": "bottle",
+    "price_paise": 16000
+  },
+  {
+    "id": "domex_cleaner",
+    "name": "Domex Toilet Cleaner",
+    "category": "Cleaning Products",
+    "aliases": ["domex toilet cleaner", "domex cleaner", "domex"],
+    "unit": "bottle",
+    "price_paise": 10000
+  },
+  {
+    "id": "colin_cleaner",
+    "name": "Colin Glass Cleaner",
+    "category": "Cleaning Products",
+    "aliases": ["colin glass cleaner", "colin cleaner", "colin spray", "colin"],
+    "unit": "bottle",
+    "price_paise": 10000
   }
 ]

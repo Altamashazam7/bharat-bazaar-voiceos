@@ -1,12 +1,13 @@
 import os
 
 from dotenv import load_dotenv
-from gnani.tts import GnaniTTSClient
 
 load_dotenv("backend/.env")
 
 
 def generate_speech(text: str):
+    from gnani.tts import GnaniTTSClient
+
     os.makedirs(
         "tts_output",
         exist_ok=True
