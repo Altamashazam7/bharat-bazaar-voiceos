@@ -2,28 +2,57 @@
   {
     "id": "amul_butter",
     "name": "Amul Butter",
-    "aliases": ["amul butter", "butter", "amul wala butter"],
+    "aliases": [
+      "amul butter",
+      "amul wala butter",
+      "amool butter",
+      "amul makhan",
+      "butter"
+    ],
     "unit": "packet",
     "price_paise": 5800
   },
   {
     "id": "fortune_oil",
     "name": "Fortune Oil",
-    "aliases": ["fortune oil", "fortune", "oil"],
+    "aliases": [
+      "fortune oil",
+      "fortune cooking oil",
+      "fortune tel",
+      "fortune",
+      "oil"
+    ],
     "unit": "kg",
     "price_paise": 18000
   },
   {
     "id": "aashirvaad_atta",
     "name": "Aashirvaad Atta",
-    "aliases": ["aashirvaad atta", "atta", "aata"],
+    "aliases": [
+      "aashirvaad atta",
+      "ashirvad atta",
+      "aashirvad atta",
+      "ashirvaad atta",
+      "ashirvad ata",
+      "aashirvaad ata",
+      "aashirwad atta",
+      "aashirwad aata",
+      "atta",
+      "aata"
+    ],
     "unit": "kg",
     "price_paise": 5500
   },
   {
     "id": "tata_salt",
     "name": "Tata Salt",
-    "aliases": ["tata salt", "salt", "namak"],
+    "aliases": [
+      "tata salt",
+      "tata namak",
+      "tata nun",
+      "salt",
+      "namak"
+    ],
     "unit": "kg",
     "price_paise": 2800
   },
@@ -32,6 +61,8 @@
     "name": "Amul Milk",
     "aliases": [
       "amul milk",
+      "amool milk",
+      "amul doodh",
       "milk",
       "doodh"
     ],
@@ -43,11 +74,38 @@
     "name": "Parle G",
     "aliases": [
       "parle g",
-"parle ji",
+      "parle ji",
+      "parleji",
+      "parle gee",
       "parle",
       "biscuit"
     ],
     "unit": "packet",
     "price_paise": 1000
+  },
+  {
+    "id": "maggi",
+    "name": "Maggi",
+    "aliases": [
+      "maggi",
+      "maggie",
+      "magi",
+      "maggi noodles",
+      "maggie noodles"
+    ],
+    "unit": "packet"
+  },
+  {
+    "id": "good_day",
+    "name": "Good Day",
+    "aliases": [
+      "good day biscuit",
+      "good day",
+      "goodday",
+      "good day cookies",
+      "gud day",
+      "gudday"
+    ],
+    "unit": "packet"
   }
 ]

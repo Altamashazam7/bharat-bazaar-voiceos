@@ -1,0 +1,71 @@
+
+VOICEOS EVALUATION
+==================================================
+
+Transcript:
+five packet amul butter two packet parle ji actually four packet amul butter
+
+PASS | order1.m4a
+Expected: {'Amul Butter': 4, 'Parle G': 2}
+Actual  : {'Amul Butter': 4, 'Parle G': 2}
+
+Transcript:
+three packet maggie two packet good day biscuit one kilo tata salt
+
+FAIL | order2.m4a
+Expected: {'Maggi': 3, 'Good Day': 2, 'Tata Salt': 1}
+Actual  : {'Tata Salt': 2}
+
+Transcript:
+two litre amul milk five packet parleji one kilo ashirvad atta
+
+FAIL | order3.m4a
+Expected: {'Amul Milk': 2, 'Parle G': 5, 'Aashirvaad Atta': 1}
+Actual  : {'Amul Milk': 2, 'Aashirvaad Atta': 5}
+
+Transcript:
+five packet maggie no three packet maggie
+
+FAIL | correction_test.m4a
+Expected: {'Maggi': 3}
+Actual  : {}
+
+Transcript:
+two packet amul butter actually four packet amul butter
+
+PASS | correction_test_2.m4a
+Expected: {'Amul Butter': 4}
+Actual  : {'Amul Butter': 4}
+
+Transcript:
+do packet amul butter teen packet parle ji ek kilo tata namak
+
+FAIL | hindi_test.m4a
+Expected: {'Amul Butter': 2, 'Parle G': 3, 'Tata Salt': 1}
+Actual  : {'Amul Butter': 2}
+
+Transcript:
+do packet amul milk five packet maggie actually three packet maggie
+
+FAIL | hinglish_test.m4a
+Expected: {'Amul Milk': 2, 'Maggi': 3}
+Actual  : {'Amul Milk': 2}
+
+Transcript:
+ek kilo ashirvad ata ek liter fortune oil do packet parlegi
+
+FAIL | kirana_test.m4a
+Expected: {'Aashirvaad Atta': 1, 'Fortune Oil': 1, 'Parle G': 2}
+Actual  : {'Fortune Oil': 1}
+
+Transcript:
+four packet maggie two packet parleji one kilo tata salt
+
+FAIL | noisy_test.m4a
+Expected: {'Maggi': 4, 'Parle G': 2, 'Tata Salt': 1}
+Actual  : {'Tata Salt': 2}
+
+==================================================
+Passed: 2/9
+Accuracy: 22.2%
+==================================================
