@@ -10,6 +10,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from backend.app.services.audio import (
+    AudioConversionError,
+    AudioConverterUnavailableError,
+    normalize_audio_for_stt,
+)
 from backend.app.services.analytics import build_analytics
 from backend.app.services.evaluation import evaluate_dataset
 from backend.app.services.inventory import (
@@ -24,6 +29,7 @@ from backend.app.services.pdf_invoice import generate_invoice_pdf
 
 logger = logging.getLogger(__name__)
 LOW_STOCK_THRESHOLD = 5
+UPLOAD_DIRECTORY = Path("uploads")
 
 
 class ProductInput(BaseModel):
@@ -92,13 +98,11 @@ def demo_invoice():
 async def transcribe_order(
     audio: UploadFile = File(...)
 ):
-    upload_dir = Path("uploads")
-
-    upload_dir.mkdir(exist_ok=True)
+    UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
     extension = Path((audio.filename or "").replace("\\", "/")).suffix
     filename = f"{uuid4().hex}{extension}"
-    file_path = upload_dir / filename
+    file_path = UPLOAD_DIRECTORY / filename
 
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(
@@ -106,9 +110,26 @@ async def transcribe_order(
             buffer
         )
 
-    return process_audio(
-        str(file_path)
-    )
+    try:
+        normalized_path = normalize_audio_for_stt(file_path)
+    except AudioConverterUnavailableError as error:
+        logger.error("Cannot process WebM upload: FFmpeg is unavailable.")
+        raise HTTPException(
+            status_code=503,
+            detail="The server requires FFmpeg to process browser recordings.",
+        ) from error
+    except AudioConversionError as error:
+        logger.warning("Could not decode uploaded recording %s: %s", filename, error)
+        raise HTTPException(
+            status_code=422,
+            detail="Could not read the recorded audio. Please record it again.",
+        ) from error
+
+    try:
+        return process_audio(str(normalized_path))
+    finally:
+        if normalized_path != file_path:
+            normalized_path.unlink(missing_ok=True)
 
 
 @app.post("/demo")

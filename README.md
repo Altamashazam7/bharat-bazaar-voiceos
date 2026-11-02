@@ -132,6 +132,7 @@ The evaluation page and `POST /evaluate` provide per-sample results. A live eval
 
 - Python 3.11 or newer
 - Node.js 20 or newer and npm
+- FFmpeg available on `PATH` to process browser-recorded WebM audio
 - Gnani API access and the Gnani Python SDK for speech recognition and synthesis
 
 The project does not currently include a Python dependency lockfile. Install the backend dependencies in a virtual environment and install/configure the Gnani SDK according to the instructions for your Gnani account.
