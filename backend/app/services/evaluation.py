@@ -32,7 +32,12 @@ def evaluate_dataset() -> dict[str, Any]:
             continue
 
         try:
-            order = process_audio(str(sample_path), include_audio=False)
+            order = process_audio(
+                str(sample_path),
+                include_audio=False,
+                record_order=False,
+                deduct_inventory=False,
+            )
             actual = order["cart"]
             passed = actual == expected
             results.append(

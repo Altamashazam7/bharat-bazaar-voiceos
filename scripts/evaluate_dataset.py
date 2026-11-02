@@ -25,7 +25,12 @@ def main():
         audio_path = f"{AUDIO_FOLDER}/{filename}"
 
         try:
-            result = process_audio(audio_path)
+            result = process_audio(
+                audio_path,
+                include_audio=False,
+                record_order=False,
+                deduct_inventory=False,
+            )
 
             actual_cart = result["cart"]
             print("\nTranscript:")

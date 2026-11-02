@@ -20,6 +20,12 @@ import {
   UploadCard,
   type Page,
 } from "./components/VoiceDashboard";
+import {
+  AdminPage,
+  AnalyticsPage,
+  InventoryPage,
+  OrdersPage,
+} from "./components/RetailPages";
 
 type Operation = "upload" | "demo" | "evaluation";
 
@@ -110,6 +116,7 @@ function App() {
                 busy={operation === "upload"}
                 disabled={operation !== null}
                 onFile={handleUpload}
+                onRecordingError={setError}
               />
               <ProcessingSteps
                 active={operation === "upload"}
@@ -135,6 +142,16 @@ function App() {
             onRun={handleEvaluation}
             report={evaluation}
           />
+        )}
+
+        {page === "inventory" && <InventoryPage />}
+
+        {page === "orders" && <OrdersPage />}
+
+        {page === "analytics" && <AnalyticsPage />}
+
+        {page === "admin" && (
+          <AdminPage evaluation={evaluation} onNavigate={setPage} />
         )}
 
         {page === "demo" && (

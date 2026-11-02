@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 
 import { audioUrl, type EvaluationReport, type OrderResult } from "../api";
+import { AudioRecorder } from "./AudioRecorder";
 
-export type Page = "overview" | "evaluation" | "demo";
+export type Page = "overview" | "inventory" | "orders" | "analytics" | "admin" | "evaluation" | "demo";
 
 interface HeaderProps {
   page: Page;
@@ -22,6 +23,10 @@ export function Header({ page, onNavigate }: HeaderProps) {
       <nav className="main-nav" aria-label="Main navigation">
         {([
           ["overview", "Overview"],
+          ["inventory", "Inventory"],
+          ["orders", "Orders"],
+          ["analytics", "Analytics"],
+          ["admin", "Admin"],
           ["evaluation", "Evaluation"],
           ["demo", "Demo mode"],
         ] as const).map(([id, label]) => (
@@ -100,9 +105,10 @@ interface UploadCardProps {
   busy: boolean;
   disabled: boolean;
   onFile: (file: File) => void;
+  onRecordingError: (message: string) => void;
 }
 
-export function UploadCard({ busy, disabled, onFile }: UploadCardProps) {
+export function UploadCard({ busy, disabled, onFile, onRecordingError }: UploadCardProps) {
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (file) onFile(file);
@@ -113,7 +119,7 @@ export function UploadCard({ busy, disabled, onFile }: UploadCardProps) {
     <Panel eyebrow="START AN ORDER" title="Turn a voice note into a ready cart" className="upload-panel">
       <label className={`upload-drop${busy ? " is-busy" : ""}`}>
         <input
-          accept=".wav,.mp3,.m4a,audio/wav,audio/mpeg,audio/mp4"
+          accept=".wav,.mp3,.m4a,.webm,audio/wav,audio/mpeg,audio/mp4,audio/webm"
           disabled={disabled}
           onChange={handleChange}
           type="file"
@@ -122,8 +128,12 @@ export function UploadCard({ busy, disabled, onFile }: UploadCardProps) {
           {busy ? <span className="spinner" /> : <UploadIcon />}
         </span>
         <span className="upload-title">{busy ? "Processing your order…" : "Drop an audio file here"}</span>
-        <span className="upload-hint">or browse your device · WAV, MP3 or M4A</span>
-        <span className="button button-primary">{busy ? "Please wait" : "Choose audio"}</span>
+        <span className="upload-hint">or browse your device · WAV, MP3, M4A or WEBM</span>
+        <span className="upload-actions">
+          <span className="button button-primary">{busy ? "Please wait" : "Choose audio"}</span>
+          <span className="upload-or">or</span>
+          <AudioRecorder disabled={disabled} onCapture={onFile} onError={onRecordingError} />
+        </span>
       </label>
       <div className="privacy-note"><LockIcon /> Audio is processed securely for this order.</div>
     </Panel>
@@ -402,6 +412,10 @@ export function ErrorBanner({ message, onDismiss }: { message: string; onDismiss
 export function PageTitle({ page }: { page: Page }) {
   const headings: Record<Page, { eyebrow: string; title: string; detail: string }> = {
     overview: { eyebrow: "YOUR VOICE COMMERCE WORKSPACE", title: "Good morning, retailer.", detail: "A simpler way to take every order, accurately." },
+    inventory: { eyebrow: "STOCK & CATALOG", title: "Inventory management", detail: "Keep products, prices, and stock ready for every order." },
+    orders: { eyebrow: "CUSTOMER ACTIVITY", title: "Order history", detail: "Search and review every saved voice order." },
+    analytics: { eyebrow: "RETAIL PERFORMANCE", title: "Business analytics", detail: "See order activity and what your customers buy most." },
+    admin: { eyebrow: "STORE OPERATIONS", title: "Retail admin", detail: "Manage inventory, review orders, and monitor store performance." },
     evaluation: { eyebrow: "QUALITY ASSURANCE", title: "Evaluation dashboard", detail: "Measure cart accuracy across the bundled voice-order benchmark." },
     demo: { eyebrow: "PRODUCT WALKTHROUGH", title: "See VoiceOS in action", detail: "One sample order. The complete voice-commerce journey." },
   };

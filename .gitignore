@@ -32,5 +32,8 @@ htmlcov/
 # Generated invoices
 invoices/
 
+# Local retail data
+data/
+
 # Replay cache
 replays/cache/

@@ -1,8 +1,8 @@
-import json
 import re
 
 from rapidfuzz import fuzz, process
 
+from backend.app.services.inventory import list_products
 from backend.app.services.quantity_parser import NUMBER_MAP
 
 
@@ -42,8 +42,7 @@ UNITS = {
 
 
 def load_catalog():
-    with open("catalog/products.json", "r") as f:
-        return json.load(f)
+    return list_products()
 
 
 def _normalize(text: str):

@@ -16,8 +16,15 @@ def test_evaluation_reports_cart_match_and_failure(tmp_path, monkeypatch):
     for filename in truth:
         (samples_path / filename).touch()
 
-    def fake_process_audio(audio_path, include_audio):
+    def fake_process_audio(
+        audio_path,
+        include_audio,
+        record_order,
+        deduct_inventory,
+    ):
         assert include_audio is False
+        assert record_order is False
+        assert deduct_inventory is False
         if Path(audio_path).name == "order1.m4a":
             return {"cart": {"Maggi": 2}, "transcript": "two maggi"}
         return {"cart": {"Tata Salt": 2}, "transcript": "two tata salt"}
