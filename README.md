@@ -1,171 +1,289 @@
 # Bharat Bazaar VoiceOS
 
-**Voice-first order management for India's neighbourhood stores.**
+> **The voice-first retail operating system for India's neighbourhood stores.**
+>
+> Turn a spoken kirana order into a structured cart, priced invoice, inventory update, order record, and natural voice confirmation.
 
-Bharat Bazaar VoiceOS helps kirana retailers turn a spoken shopping list into a searchable order, priced invoice, stock update, and natural voice confirmation. The interface brings daily store operations—inventory, order history, analytics, evaluation, and a one-click demo—into one dashboard.
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/UI-React-20232A?logo=react&logoColor=61DAFB)](https://react.dev/)
+[![Benchmark](https://img.shields.io/badge/Benchmark-9%2F9%20passed-brightgreen)](#evaluation)
 
-## Problem statement
+[Features](#features) · [Architecture](#architecture) · [Evaluation](#evaluation) · [Get started](#getting-started) · [Demo](#demo-workflow)
 
-Small retailers take many orders over calls and voice notes. Manually replaying audio, interpreting mixed Hindi and English, finding products, and calculating totals slows fulfillment and increases mistakes. VoiceOS automates that workflow while keeping the resulting cart and invoice visible for review.
+---
+
+## Why VoiceOS
+
+Kirana retailers receive orders in person, over calls, and through voice notes. Converting those conversations into accurate product lists and totals takes time, especially when customers switch between Hindi, Hinglish, and English or correct themselves mid-order.
+
+Bharat Bazaar VoiceOS uses speech recognition and a retail-aware parsing workflow to transform those requests into reviewable store operations. Retailers can manage stock, keep order history, inspect sales analytics, and generate printable invoices from one dashboard.
 
 ## Features
 
-- Upload WAV, MP3, M4A, or WEBM audio, or record an order using the browser microphone.
-- Transcribe with Gnani Prisma STT; split multi-product speech and parse English and Hindi quantity words.
-- Match pronunciation aliases in a 62-product, 14-category Indian kirana catalog.
-- Review structured transcript, command timeline, cart, tax-inclusive invoice, and generated speech.
-- Manage product details, prices, aliases, and stock from the inventory dashboard.
-- Track orders, search or filter history, view saved invoice details, and download a printable PDF.
-- Review daily/weekly order activity, product sales, revenue, and best-selling categories.
-- Run the bundled audio benchmark or process a bundled sample in Demo Mode.
-- Use the Admin page for quick access to store operations and the latest benchmark result.
+### Voice ordering
+
+- Upload an audio order or record one with a browser microphone.
+- Transcribe with **Gnani Prisma STT**.
+- Process Hindi, Hinglish, and English product requests.
+- Split multi-product orders and extract spoken quantities.
+- Match product names and pronunciation variants against the catalog.
+- Handle spoken corrections before generating the final cart.
+- Create natural-language confirmations and audio with **Gnani Timbre TTS**.
+
+### Retail operations
+
+- **Catalog and inventory:** add, edit, and remove products; manage categories, aliases, units, prices, and stock; review low-stock and out-of-stock counts.
+- **Orders:** search order history and inspect saved transcript, cart, invoice, and confirmation details.
+- **Invoices:** calculate price-aware line totals and download printable PDF invoices.
+- **Analytics:** review daily and weekly orders, items sold, average order size, revenue, and popular products and categories.
+- **Admin:** access key store operations and benchmark results from a single page.
+- **Demo mode:** process a bundled sample order without manually uploading audio.
+- **Evaluation:** compare recognized carts against the bundled audio benchmark.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Browser[React + Vite dashboard] -->|Audio / inventory / order API| API[FastAPI]
-    API --> STT[Gnani Prisma STT]
-    STT --> Split[Transcript and command splitter]
-    Split --> Parser[Quantity and inventory-aware product matcher]
-    Parser --> Cart[Order cart]
-    Cart --> Pricing[Catalog pricing and invoice]
-    Pricing --> History[(JSON order history)]
-    Cart --> Stock[(JSON inventory)]
-    Pricing --> PDF[Printable PDF invoice]
-    Pricing --> TTS[Gnani Timbre TTS]
+    Browser["React + TypeScript dashboard"] -->|"Audio and retail API requests"| API["FastAPI"]
+    API --> STT["Gnani Prisma STT"]
+    STT --> Split["Transcript and command splitter"]
+    Split --> Parse["Quantity extraction and product matching"]
+    Parse --> Cart["Structured order cart"]
+    Cart --> Invoice["Price-aware invoice"]
+    Invoice --> History[("JSON order history")]
+    Cart --> Stock[("JSON inventory")]
+    Invoice --> PDF["Printable PDF"]
+    Invoice --> TTS["Gnani Timbre TTS"]
     TTS --> Browser
-    Parser --> Benchmark[Cart benchmark comparison]
+    Parse --> Evaluation["Benchmark comparison"]
 ```
 
-### Main API routes
+### Technology
 
-| Method | Route | Purpose |
+| Area | Technologies |
+| --- | --- |
+| Frontend | React, TypeScript, Vite |
+| Backend | Python, FastAPI, Pydantic |
+| Speech recognition | Gnani Prisma STT |
+| Speech synthesis | Gnani Timbre TTS |
+| Product matching | RapidFuzz and catalog aliases |
+| Local persistence | JSON files |
+| Quality checks | pytest, TypeScript production build, Oxlint |
+
+### API overview
+
+| Method | Endpoint | Purpose |
 | --- | --- | --- |
-| `POST` | `/transcribe-order` | Existing upload/transcription workflow; response retains its original fields and adds order metadata. |
-| `POST` | `/demo` | Process the bundled `order1.m4a` sample. |
-| `POST` | `/evaluate` | Run all benchmark samples without saving orders or deducting stock. |
-| `GET` | `/inventory` | Return products and low/out-of-stock counts. |
-| `POST` | `/inventory` | Add a product. |
-| `PUT` / `DELETE` | `/inventory/{product_id}` | Edit or remove a product. |
-| `GET` | `/orders` | Search/filter order history. |
-| `GET` | `/orders/{order_id}` | Fetch an order snapshot. |
-| `GET` | `/orders/{order_id}/invoice.pdf` | Generate/download a printable PDF copy. |
-| `GET` | `/analytics` | Return retailer sales metrics. |
+| `GET` | `/` | API health check |
+| `POST` | `/transcribe-order` | Upload and process an audio order |
+| `POST` | `/demo` | Process the bundled sample audio |
+| `POST` | `/evaluate` | Run the bundled benchmark |
+| `GET` | `/inventory` | Read products and stock-health metrics |
+| `POST` | `/inventory` | Add an inventory product |
+| `PUT` | `/inventory/{product_id}` | Update an inventory product |
+| `DELETE` | `/inventory/{product_id}` | Remove an inventory product |
+| `GET` | `/orders` | Search and list saved orders |
+| `GET` | `/orders/{order_id}` | Read an order snapshot |
+| `GET` | `/orders/{order_id}/invoice.pdf` | Generate and download an order PDF |
+| `GET` | `/analytics` | Read store sales metrics |
 
-Inventory and order history are stored as JSON under the ignored local `data/` directory. When first opened, inventory is seeded from `catalog/products.json` with 20 units per product. The JSON store is intended for a local demo or single-process installation; use a transactional database before running multiple API workers or serving concurrent stores.
+Interactive API documentation is available at `/docs` when the backend is running.
 
-## Price and tax behavior
+## Screenshots
 
-Product prices are held as integer paise. Invoice line totals use the current inventory price. The sample invoice applies **5% GST as included in the catalog price**, so the grand total remains the advertised retail subtotal (for example, four Amul Butter at ₹58 and two Parle G at ₹10 total ₹252; ₹12 is shown as included GST). This is a demo assumption, not tax advice. Confirm product tax classifications and local tax rules before using invoices for real accounting.
+Screenshots are not checked into the repository yet. Capture the running app and add the images under `docs/screenshots/` before publishing:
 
-## Tech stack
+| Suggested image | Screen |
+| --- | --- |
+| `docs/screenshots/overview.png` | Main dashboard and voice-order workflow |
+| `docs/screenshots/inventory.png` | Product catalog and stock management |
+| `docs/screenshots/orders.png` | Order history and invoice details |
+| `docs/screenshots/analytics.png` | Retail sales analytics |
 
-- Python, FastAPI, Pydantic
-- Gnani Prisma STT and Gnani Timbre TTS
-- RapidFuzz product matching
-- JSON inventory and order-history persistence
-- React 19, TypeScript, Vite
-- pytest, browser-based UI checks, and an audio evaluation dataset
+## Evaluation
 
-## Evaluation results
+The current benchmark result is **9 of 9 samples passed (100% accuracy)**.
 
-The current reported benchmark baseline is **9/9 exact cart matches (100%)**. Run the Evaluation page or use:
+| Metric | Result |
+| --- | ---: |
+| Samples | 9 |
+| Passed | 9 |
+| Failed | 0 |
+| Cart accuracy | 100% |
+
+The benchmark checks exact cart matches for English, Hindi, Hinglish, multi-product orders, pronunciation variants, and spoken corrections. Its audio samples are stored in `samples/eval/`; expected carts are in `eval/ground_truth.json`.
+
+Run the evaluation from the repository root:
 
 ```bash
 python scripts/evaluate_dataset.py
 ```
 
-A live run calls the configured Gnani STT service for each recording. Benchmark processing does not synthesize confirmation audio, save customer orders, or update stock. The automated test suite covers parser behavior, inventory CRUD, pricing, confirmation copy, order history, analytics, PDF output, and workflow contracts.
+The evaluation page and `POST /evaluate` provide per-sample results. A live evaluation requires working Gnani STT credentials and access to the configured service. Benchmark processing does not save customer orders, deduct inventory, or generate TTS audio.
 
-### Dataset
+### Included samples
 
-| Recording | Scenario |
-| --- | --- |
-| `order1.m4a` | Multiple products and quantity correction |
-| `order2.m4a` | Noodles, biscuits, and salt |
-| `order3.m4a` | Dairy, biscuits, and flour |
-| `correction_test.m4a` | Spoken correction |
-| `correction_test_2.m4a` | “Actually” correction |
-| `hindi_test.m4a` | Hindi quantity words and product names |
-| `hinglish_test.m4a` | Mixed Hindi and English |
-| `kirana_test.m4a` | Common store products and pronunciation variants |
-| `noisy_test.m4a` | Recognition variation |
+`order1.m4a`, `order2.m4a`, `order3.m4a`, `correction_test.m4a`, `correction_test_2.m4a`, `hindi_test.m4a`, `hinglish_test.m4a`, `kirana_test.m4a`, and `noisy_test.m4a`.
 
-Ground truth is in `eval/ground_truth.json`; audio is in `samples/eval/`.
+## Getting started
 
-## Screenshots
-
-The running app contains screenshot-ready Overview, Inventory, Orders, Analytics, Admin, Evaluation, and Demo pages. To capture current screenshots, start the frontend as described below and save browser captures in `docs/screenshots/`. Screenshots are not checked into this repository yet.
-
-## Setup
-
-### Requirements
+### Prerequisites
 
 - Python 3.11 or newer
-- Node.js 20 or newer
-- Gnani credentials and the Gnani Python SDK required by your account
+- Node.js 20 or newer and npm
+- Gnani API access and the Gnani Python SDK for speech recognition and synthesis
 
-Install backend packages in a virtual environment. This project currently has no Python dependency lockfile:
+The project does not currently include a Python dependency lockfile. Install the backend dependencies in a virtual environment and install/configure the Gnani SDK according to the instructions for your Gnani account.
+
+### 1. Configure Gnani credentials
+
+Copy the template and add your API key:
+
+**macOS / Linux**
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+**Windows PowerShell**
+
+```powershell
+Copy-Item backend/.env.example backend/.env
+```
+
+```dotenv
+GNANI_API_KEY=your_api_key
+```
+
+Keep credentials private. Do not commit `.env` files or API keys.
+
+### 2. Install backend dependencies
+
+From the repository root:
 
 ```bash
 python -m venv .venv
-# Activate the virtual environment for your shell, then:
+```
+
+Activate the environment, then install the application dependencies:
+
+**macOS / Linux**
+
+```bash
+source .venv/bin/activate
 python -m pip install fastapi "uvicorn[standard]" python-multipart python-dotenv rapidfuzz pytest
 ```
 
-Install the Gnani SDK following the package and credential instructions provided for your Gnani account. Set `GNANI_API_KEY` in the environment or in `backend/.env`; never commit credentials.
+**Windows PowerShell**
 
-### Start the API
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m pip install fastapi "uvicorn[standard]" python-multipart python-dotenv rapidfuzz pytest
+```
 
-Run from the repository root:
+Install the Gnani SDK using the distribution and setup instructions supplied for your account.
+
+### 3. Install frontend dependencies
+
+```bash
+cd frontend
+npm ci
+```
+
+The frontend uses `http://127.0.0.1:8000` as its default API URL. To use another backend address, set `VITE_API_BASE_URL` in the frontend environment before starting Vite:
+
+```dotenv
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+## Running locally
+
+Run each service in a separate terminal.
+
+**Backend** — from the repository root, with the Python environment activated:
 
 ```bash
 uvicorn backend.app.api.main:app --reload
 ```
 
-The API is at `http://127.0.0.1:8000`; interactive docs are at `http://127.0.0.1:8000/docs`.
+The API is available at `http://127.0.0.1:8000`; interactive documentation is at `http://127.0.0.1:8000/docs`.
 
-### Start the web app
-
-In another terminal:
+**Frontend** — from the `frontend/` directory:
 
 ```bash
-cd frontend
-npm install
 npm run dev
 ```
 
-Open the Vite URL (normally `http://localhost:5173`). Set `VITE_API_BASE_URL` before starting Vite to use a different backend host; it defaults to `http://127.0.0.1:8000`.
+Open the local URL printed by Vite (typically `http://localhost:5173`). Allow microphone access in the browser to use live recording.
 
-### Tests and production build
+### Run tests and checks
 
 From the repository root:
 
 ```bash
-python -m pytest -q tests
-cd frontend
+python -m pytest -q
+```
+
+Then from `frontend/`:
+
+```bash
 npm run build
 npm run lint
 ```
 
-## Demo steps
+## Demo workflow
 
-1. Start the API and frontend.
-2. Open **Demo mode** and select **Run the demo**; the bundled sample is transcribed and processed automatically.
-3. Review the transcript, extracted commands, cart, invoice, and confirmation. Browser autoplay policies may require pressing Play.
-4. Open **Inventory** to adjust price or stock, **Orders** to inspect the saved order and download its PDF, and **Analytics** to review sales.
-5. Upload or record another voice order from **Overview**.
-6. Open **Evaluation** and run the benchmark when Gnani credentials are available.
+1. Configure the Gnani API key, then start the backend and frontend.
+2. Open **Demo** in the application and choose **Run Demo**. VoiceOS loads the bundled `order1.m4a` sample automatically.
+3. Review the recognized transcript, extracted commands, product quantities, cart, invoice, and generated confirmation.
+4. Play the generated confirmation audio. Some browsers require a user gesture before audio playback.
+5. Visit **Inventory** to review product stock and prices, **Orders** to inspect the saved order and download its PDF invoice, or **Analytics** to view store metrics.
+6. Use **Overview** to upload or record another order, or open **Evaluation** to run the benchmark.
 
-## Screenshots and release checklist
+The demo requires working Gnani credentials because it performs live transcription and generates a voice confirmation.
 
-Before a public release, capture the live responsive pages into `docs/screenshots/`, verify credentials are managed outside source control, confirm store-specific GST rules, and replace the single-process JSON persistence with a transactional database.
+## Project structure
 
-## Future work
+```text
+.
+├── backend/
+│   └── app/
+│       ├── api/                 # FastAPI routes
+│       └── services/            # Transcription workflow, parsing, inventory,
+│                                # invoices, orders, analytics, evaluation, and PDF
+├── backend/.env.example         # Local Gnani configuration template
+├── catalog/
+│   └── products.json            # Product catalog, prices, and matching aliases
+├── data/                        # Local JSON inventory and order history (runtime)
+├── docs/                        # Project documentation and screenshots (add captures here)
+├── eval/
+│   └── ground_truth.json        # Expected carts for evaluation samples
+├── frontend/
+│   └── src/
+│       ├── components/          # Dashboard and retail pages
+│       ├── api.ts               # Typed backend API client
+│       └── App.tsx              # Application shell and navigation
+├── samples/
+│   └── eval/                    # Bundled benchmark audio
+├── scripts/
+│   └── evaluate_dataset.py      # Command-line benchmark runner
+├── tests/                       # Backend service and API tests
+└── tts_output/                  # Generated confirmation audio (runtime)
+```
 
-- Multi-store accounts, retailer authentication, and role-based permissions.
-- Database-backed orders, inventory transactions, audit history, and backups.
-- Configurable store identity, tax classifications, and invoice numbering.
-- Reservation/fulfillment workflow and explicit low-stock order warnings.
-- Larger regional-language and noisy-audio benchmarks with reproducible STT versions.
+## Data, pricing, and deployment notes
+
+- Inventory and order history are persisted as local JSON under `data/`. The first inventory load seeds products from `catalog/products.json` with 20 units of stock per product.
+- JSON persistence is suitable for a local demo or a single-process setup. It is not a substitute for a transactional database when running multiple workers or serving multiple stores concurrently.
+- Catalog prices are stored as integer paise. The sample invoice treats prices as tax-inclusive at a **5% demo GST rate**; for example, four Amul Butter at ₹58 each and two Parle G at ₹10 each total ₹252, with ₹12 shown as included GST. This is a demonstration assumption, not tax advice. Confirm applicable tax classifications and rules before using invoices for real accounting.
+- The application is a working product prototype. Authentication, tenant isolation, and production-grade database operations are future work.
+
+## Future improvements
+
+- Add retailer accounts, authentication, role-based access, and multi-store tenancy.
+- Replace local JSON persistence with a transactional database, backups, and audit history.
+- Configure store branding, tax rules, invoice numbering, and payment workflows.
+- Add stock reservation, fulfillment tracking, and safeguards for insufficient inventory.
+- Expand language coverage and benchmark size; measure accuracy across recording conditions and STT versions.
+- Improve operational observability, deployment automation, and production monitoring.

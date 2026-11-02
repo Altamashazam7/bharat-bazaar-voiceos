@@ -1,22 +1,31 @@
 # Python
 .venv/
+venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
 
 # Environment
 .env
 .env.*
+!.env.example
+!**/.env.example
 
 # Node
 node_modules/
 dist/
+dist-ssr/
 
 # IDE
 .vscode/
+.idea/
 
 # OS
 .DS_Store
+Thumbs.db
 
 # Logs
 *.log
@@ -25,15 +34,17 @@ dist/
 htmlcov/
 .coverage
 
-# Audio
-*.wav
-*.mp3
+# Runtime audio and speech artifacts
+/uploads/
+/transcripts/
+/tts_output/*
+!/tts_output/.gitkeep
 
 # Generated invoices
-invoices/
+/invoices/
 
 # Local retail data
-data/
+/data/
 
 # Replay cache
-replays/cache/
+/replays/cache/
