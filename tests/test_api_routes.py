@@ -10,6 +10,58 @@ from backend.app.api.main import app
 from backend.app.services import audio as audio_service
 
 
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://bharat-bazaar-voiceos.vercel.app",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+)
+@pytest.mark.parametrize("method", ["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+def test_cors_preflight_allows_configured_origins_and_methods(origin, method):
+    messages = []
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        messages.append(message)
+
+    asyncio.run(
+        app(
+            {
+                "type": "http",
+                "asgi": {"version": "3.0"},
+                "http_version": "1.1",
+                "method": "OPTIONS",
+                "scheme": "http",
+                "path": "/transcribe-order",
+                "raw_path": b"/transcribe-order",
+                "query_string": b"",
+                "headers": [
+                    (b"origin", origin.encode()),
+                    (b"access-control-request-method", method.encode()),
+                    (b"access-control-request-headers", b"content-type"),
+                ],
+                "server": ("testserver", 80),
+                "client": ("testclient", 50000),
+            },
+            receive,
+            send,
+        )
+    )
+
+    response = next(
+        message for message in messages if message["type"] == "http.response.start"
+    )
+    headers = dict(response["headers"])
+    assert response["status"] == 200
+    assert headers[b"access-control-allow-origin"] == origin.encode()
+    assert headers[b"access-control-allow-credentials"] == b"true"
+    assert method.encode() in headers[b"access-control-allow-methods"]
+
+
 def test_original_and_new_workflow_routes_are_available():
     paths = {route.path for route in app.routes}
 
