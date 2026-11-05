@@ -1,24 +1,16 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import {
-  createProduct,
-  deleteProduct,
-  getAnalytics,
-  getInventory,
-  getOrder,
-  getOrders,
   invoicePdfUrl,
-  updateProduct,
-  type AnalyticsReport,
   type EvaluationReport,
-  type InventoryReport,
-  type OrderRecord,
-  type Product,
 } from "../api";
+import { createProduct, deleteProduct, getProducts, updateProduct } from "../services/productService";
+import { getBusinessAnalytics, getOrder, getOrders } from "../services/orderService";
+import type { BusinessAnalytics, Order, Product } from "../types/business";
 import { ErrorBanner, Notification, PageTitle, Panel } from "./VoiceDashboard";
 
 export function InventoryPage() {
-  const [inventory, setInventory] = useState<InventoryReport | null>(null);
+  const [products, setProducts] = useState<Product[] | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -26,13 +18,12 @@ export function InventoryPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   async function refresh() {
-    const report = await getInventory();
-    setInventory(report);
+    setProducts(await getProducts());
   }
 
   useEffect(() => {
-    void getInventory()
-      .then(setInventory)
+    void getProducts()
+      .then(setProducts)
       .catch((loadError: unknown) => setError(messageOf(loadError)));
   }, []);
 
@@ -41,7 +32,7 @@ export function InventoryPage() {
     setError(null);
     try {
       if (editing) {
-        await updateProduct({ ...form, id: editing.id });
+        await updateProduct(editing.id, form);
         setNotice("Product updated");
       } else {
         await createProduct(form);
@@ -78,24 +69,24 @@ export function InventoryPage() {
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
       {notice && <Notification onDismiss={() => setNotice(null)}>{notice}</Notification>}
       <div className="retail-stat-grid">
-        <MetricCard label="Total products" value={inventory?.total_products ?? "—"} tone="green" />
-        <MetricCard label="Low stock" value={inventory?.low_stock_items ?? "—"} tone="amber" />
-        <MetricCard label="Out of stock" value={inventory?.out_of_stock_items ?? "—"} tone="red" />
+        <MetricCard label="Total products" value={products?.length ?? "—"} tone="green" />
+        <MetricCard label="Low stock" value={products?.filter((product) => product.stock > 0 && product.stock <= 5).length ?? "—"} tone="amber" />
+        <MetricCard label="Out of stock" value={products?.filter((product) => product.stock === 0).length ?? "—"} tone="red" />
       </div>
       <Panel
         eyebrow="PRODUCT CATALOG"
         title="Inventory"
         action={<button className="button button-primary" onClick={() => setAdding(true)} type="button">＋ Add product</button>}
       >
-        {inventory?.products.length ? (
+        {products?.length ? (
           <div className="table-wrap">
             <table className="data-table retail-table">
               <thead><tr><th>Product</th><th>Category</th><th>Stock</th><th>Unit</th><th className="align-right">Price</th><th className="align-right">Actions</th></tr></thead>
-              <tbody>{inventory.products.map((product) => (
+              <tbody>{products.map((product) => (
                 <tr key={product.id}>
-                  <td><strong>{product.name}</strong><small className="product-aliases">{product.aliases.slice(0, 3).join(" · ")}</small></td>
+                  <td><strong>{product.name}</strong></td>
                   <td>{product.category}</td>
-                  <td><StockBadge stock={product.stock} threshold={inventory.low_stock_threshold} /></td>
+                  <td><StockBadge stock={product.stock} threshold={5} /></td>
                   <td>{product.unit}</td>
                   <td className="align-right">{formatMoney(product.price_paise)}</td>
                   <td className="align-right"><span className="row-actions">
@@ -123,7 +114,6 @@ export function InventoryPage() {
 interface ProductFormValue {
   name: string;
   category: string;
-  aliases: string[];
   unit: string;
   price_paise: number;
   stock: number;
@@ -142,7 +132,6 @@ function ProductDialog({
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [category, setCategory] = useState(initial?.category ?? "");
-  const [aliases, setAliases] = useState(initial?.aliases.join(", ") ?? "");
   const [unit, setUnit] = useState(initial?.unit ?? "packet");
   const [price, setPrice] = useState(initial ? (initial.price_paise / 100).toFixed(2) : "");
   const [stock, setStock] = useState(initial ? String(initial.stock) : "0");
@@ -152,7 +141,6 @@ function ProductDialog({
     void onSave({
       name: name.trim(),
       category: category.trim(),
-      aliases: aliases.split(",").map((alias) => alias.trim()).filter(Boolean),
       unit: unit.trim(),
       price_paise: Math.round(Number(price) * 100),
       stock: Math.max(0, Math.floor(Number(stock))),
@@ -169,7 +157,6 @@ function ProductDialog({
             <label>Category<input maxLength={80} onChange={(event) => setCategory(event.target.value)} required value={category} /></label>
             <label>Unit<input maxLength={30} onChange={(event) => setUnit(event.target.value)} required value={unit} /></label>
           </div>
-          <label>Voice aliases <small>Separate alternate pronunciations with commas.</small><input onChange={(event) => setAliases(event.target.value)} value={aliases} /></label>
           <div className="form-two-col">
             <label>Price (₹)<input min="0" onChange={(event) => setPrice(event.target.value)} required step="0.01" type="number" value={price} /></label>
             <label>Stock<input min="0" onChange={(event) => setStock(event.target.value)} required step="1" type="number" value={stock} /></label>
@@ -183,20 +170,19 @@ function ProductDialog({
 
 export function OrdersPage() {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [orders, setOrders] = useState<OrderRecord[]>([]);
-  const [selected, setSelected] = useState<OrderRecord | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [selected, setSelected] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      void getOrders(search, status).then(({ orders: nextOrders }) => {
+      void getOrders(search).then(({ orders: nextOrders }) => {
         setOrders(nextOrders);
         setError(null);
       }).catch((loadError: unknown) => setError(messageOf(loadError)));
     }, 250);
     return () => window.clearTimeout(timeout);
-  }, [search, status]);
+  }, [search]);
 
   async function viewOrder(orderId: string) {
     try {
@@ -213,20 +199,18 @@ export function OrdersPage() {
       <Panel eyebrow="CUSTOMER ORDERS" title="Order history" action={<span className="count-pill">{orders.length} recent orders</span>}>
         <div className="order-filters">
           <label className="search-field"><SearchIcon /><input aria-label="Search order history" onChange={(event) => setSearch(event.target.value)} placeholder="Search order, transcript or product…" value={search} /></label>
-          <label className="filter-select"><span>Status</span><select aria-label="Filter orders by status" onChange={(event) => setStatus(event.target.value)} value={status}><option value="">All orders</option><option value="confirmed">Confirmed</option></select></label>
         </div>
         {orders.length ? (
           <div className="table-wrap">
             <table className="data-table retail-table">
-              <thead><tr><th>Order</th><th>Date</th><th>Products</th><th>Total</th><th>Status</th><th /></tr></thead>
+              <thead><tr><th>Order</th><th>Date</th><th>Products</th><th>Total</th><th /></tr></thead>
               <tbody>{orders.map((order) => (
-                <tr key={order.order_id}>
-                  <td><strong>{order.order_id}</strong><small className="product-aliases">{order.transcript}</small></td>
-                  <td>{formatDate(order.timestamp)}</td>
-                  <td>{Object.keys(order.cart).length} products</td>
+                <tr key={order.id}>
+                  <td><strong>{order.id}</strong><small className="product-aliases">{order.transcript}</small></td>
+                  <td>{formatDate(order.created_at)}</td>
+                  <td>{order.invoice.items?.length ?? 0} products</td>
                   <td>{formatMoney(order.invoice.grand_total_paise ?? 0)}</td>
-                  <td><span className="status-badge status-passed"><span />Confirmed</span></td>
-                  <td className="align-right"><button className="small-action" onClick={() => void viewOrder(order.order_id)} type="button">Details</button></td>
+                  <td className="align-right"><button className="small-action" onClick={() => void viewOrder(order.id)} type="button">Details</button></td>
                 </tr>
               ))}</tbody>
             </table>
@@ -234,13 +218,13 @@ export function OrdersPage() {
         ) : <EmptyRetail title="No orders found" detail={search ? "Try another search term." : "Completed voice orders are saved here."} />}
       </Panel>
       {selected && (
-        <Panel eyebrow={`ORDER ${selected.order_id}`} title="Order details" className="order-detail-panel" action={<button className="button button-secondary" onClick={() => setSelected(null)} type="button">Close</button>}>
+        <Panel eyebrow={`ORDER ${selected.id}`} title="Order details" className="order-detail-panel" action={<button className="button button-secondary" onClick={() => setSelected(null)} type="button">Close</button>}>
           <p className="detail-transcript">“{selected.transcript}”</p>
           <div className="table-wrap"><table className="data-table retail-table"><thead><tr><th>Product</th><th>Quantity</th><th>Unit price</th><th className="align-right">Line total</th></tr></thead>
             <tbody>{selected.invoice.items?.map((item) => <tr key={item.product}><td><strong>{item.product}</strong></td><td>{item.quantity} {item.unit}</td><td>{formatMoney(item.unit_price_paise)}</td><td className="align-right">{formatMoney(item.line_total_paise)}</td></tr>)}</tbody>
           </table></div>
           <div className="detail-totals"><span>Subtotal <strong>{formatMoney(selected.invoice.subtotal_paise ?? 0)}</strong></span><span>GST included <strong>{formatMoney(selected.invoice.tax_paise ?? 0)}</strong></span><span>Grand total <strong>{formatMoney(selected.invoice.grand_total_paise ?? 0)}</strong></span></div>
-          <a className="button button-primary pdf-link" href={invoicePdfUrl(selected.order_id)} rel="noreferrer" target="_blank"><DownloadIcon /> Download invoice PDF</a>
+          <a className="button button-primary pdf-link" href={invoicePdfUrl(selected.id)} rel="noreferrer" target="_blank"><DownloadIcon /> Download invoice PDF</a>
         </Panel>
       )}
     </>
@@ -248,11 +232,11 @@ export function OrdersPage() {
 }
 
 export function AnalyticsPage() {
-  const [report, setReport] = useState<AnalyticsReport | null>(null);
+  const [report, setReport] = useState<BusinessAnalytics | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void getAnalytics().then(setReport).catch((loadError: unknown) => setError(messageOf(loadError)));
+    void getBusinessAnalytics().then(setReport).catch((loadError: unknown) => setError(messageOf(loadError)));
   }, []);
 
   return (
@@ -285,15 +269,15 @@ export function AdminPage({
   evaluation: EvaluationReport | null;
   onNavigate: (page: "inventory" | "orders" | "analytics" | "evaluation") => void;
 }) {
-  const [inventory, setInventory] = useState<InventoryReport | null>(null);
+  const [products, setProducts] = useState<Product[] | null>(null);
   const [orderCount, setOrderCount] = useState<number | null>(null);
-  const [analytics, setAnalytics] = useState<AnalyticsReport | null>(null);
+  const [analytics, setAnalytics] = useState<BusinessAnalytics | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void Promise.all([getInventory(), getOrders(), getAnalytics()])
-      .then(([inventoryReport, orderReport, analyticsReport]) => {
-        setInventory(inventoryReport);
+    void Promise.all([getProducts(), getOrders(), getBusinessAnalytics()])
+      .then(([businessProducts, orderReport, analyticsReport]) => {
+        setProducts(businessProducts);
         setOrderCount(orderReport.total);
         setAnalytics(analyticsReport);
       })
@@ -301,7 +285,7 @@ export function AdminPage({
   }, []);
 
   const sections = [
-    { title: "Inventory", description: `${inventory?.total_products ?? "—"} products · ${inventory?.low_stock_items ?? "—"} low stock`, page: "inventory" as const, label: "Manage stock" },
+    { title: "Inventory", description: `${products?.length ?? "—"} products · ${products?.filter((product) => product.stock > 0 && product.stock <= 5).length ?? "—"} low stock`, page: "inventory" as const, label: "Manage stock" },
     { title: "Orders", description: `${orderCount ?? "—"} saved customer orders`, page: "orders" as const, label: "View orders" },
     { title: "Analytics", description: `${analytics?.revenue ?? "—"} revenue today`, page: "analytics" as const, label: "Open analytics" },
     { title: "Benchmark", description: evaluation ? `${evaluation.passed}/${evaluation.total_samples} passed · ${evaluation.accuracy}%` : "Run the speech benchmark to review accuracy.", page: "evaluation" as const, label: evaluation ? "Review results" : "Run benchmark" },
@@ -312,9 +296,9 @@ export function AdminPage({
       <PageTitle page="admin" />
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
       <div className="retail-stat-grid">
-        <MetricCard label="Catalog products" value={inventory?.total_products ?? "—"} tone="green" />
+        <MetricCard label="Catalog products" value={products?.length ?? "—"} tone="green" />
         <MetricCard label="Orders stored" value={orderCount ?? "—"} tone="blue" />
-        <MetricCard label="Low stock alerts" value={inventory?.low_stock_items ?? "—"} tone="amber" />
+        <MetricCard label="Low stock alerts" value={products?.filter((product) => product.stock > 0 && product.stock <= 5).length ?? "—"} tone="amber" />
         <MetricCard label="Revenue today" value={analytics?.revenue ?? "—"} tone="purple" />
       </div>
       <div className="admin-grid">{sections.map((section) => (

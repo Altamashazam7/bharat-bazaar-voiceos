@@ -2,15 +2,18 @@ import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "r
 
 import { audioUrl, type EvaluationReport, type OrderResult } from "../api";
 import { AudioRecorder } from "./AudioRecorder";
+import { BusinessSelector } from "./BusinessSelector";
 
 export type Page = "overview" | "inventory" | "orders" | "analytics" | "admin" | "evaluation" | "demo";
 
 interface HeaderProps {
   page: Page;
   onNavigate: (page: Page) => void;
+  onBusinessChange: (businessId: string | null) => void;
+  onBusinessLoadComplete: (loaded: boolean) => void;
 }
 
-export function Header({ page, onNavigate }: HeaderProps) {
+export function Header({ page, onNavigate, onBusinessChange, onBusinessLoadComplete }: HeaderProps) {
   return (
     <header className="topbar">
       <button className="brand" onClick={() => onNavigate("overview")} type="button">
@@ -40,6 +43,7 @@ export function Header({ page, onNavigate }: HeaderProps) {
           </button>
         ))}
       </nav>
+      <BusinessSelector onBusinessChange={onBusinessChange} onLoadComplete={onBusinessLoadComplete} />
       <span className="topbar-tag"><span className="status-dot" /> Live demo</span>
     </header>
   );

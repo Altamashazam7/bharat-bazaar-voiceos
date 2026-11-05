@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import {
   runDemo,
@@ -36,6 +36,8 @@ function App() {
   const [evaluation, setEvaluation] = useState<EvaluationReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [activeBusinessId, setActiveBusinessId] = useState<string | null>(null);
+  const [businessesLoaded, setBusinessesLoaded] = useState(false);
 
   useEffect(() => {
     if (!notice) return;
@@ -99,7 +101,12 @@ function App() {
 
   return (
     <div className="app-shell">
-      <Header page={page} onNavigate={setPage} />
+      <Header
+        page={page}
+        onNavigate={setPage}
+        onBusinessChange={setActiveBusinessId}
+        onBusinessLoadComplete={setBusinessesLoaded}
+      />
       <main className="main-content">
         {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
@@ -144,14 +151,28 @@ function App() {
           />
         )}
 
-        {page === "inventory" && <InventoryPage />}
+        {page === "inventory" && (
+          <BusinessGate businessId={activeBusinessId} loaded={businessesLoaded}>
+            <InventoryPage key={activeBusinessId ?? "no-business"} />
+          </BusinessGate>
+        )}
 
-        {page === "orders" && <OrdersPage />}
+        {page === "orders" && (
+          <BusinessGate businessId={activeBusinessId} loaded={businessesLoaded}>
+            <OrdersPage key={activeBusinessId ?? "no-business"} />
+          </BusinessGate>
+        )}
 
-        {page === "analytics" && <AnalyticsPage />}
+        {page === "analytics" && (
+          <BusinessGate businessId={activeBusinessId} loaded={businessesLoaded}>
+            <AnalyticsPage key={activeBusinessId ?? "no-business"} />
+          </BusinessGate>
+        )}
 
         {page === "admin" && (
-          <AdminPage evaluation={evaluation} onNavigate={setPage} />
+          <BusinessGate businessId={activeBusinessId} loaded={businessesLoaded}>
+            <AdminPage key={activeBusinessId ?? "no-business"} evaluation={evaluation} onNavigate={setPage} />
+          </BusinessGate>
         )}
 
         {page === "demo" && (
@@ -170,6 +191,20 @@ function App() {
       {notice && <Notification onDismiss={() => setNotice(null)}>{notice}</Notification>}
     </div>
   );
+}
+
+function BusinessGate({
+  businessId,
+  loaded,
+  children,
+}: {
+  businessId: string | null;
+  loaded: boolean;
+  children: ReactNode;
+}) {
+  if (!loaded) return <div className="business-page-state">Loading stores…</div>;
+  if (!businessId) return <div className="business-page-state">Create your first store.</div>;
+  return children;
 }
 
 function errorMessage(error: unknown, fallback: string): string {
