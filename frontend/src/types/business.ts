@@ -1,5 +1,6 @@
 export interface Business {
   id: string;
+  owner_user_id: string;
   name: string;
   owner_name: string;
   phone: string;
@@ -10,14 +11,25 @@ export interface Product {
   id: string;
   business_id: string;
   name: string;
+  aliases?: string[];
   category: string;
   unit: string;
   price_paise: number;
   stock: number;
 }
 
-export type BusinessInput = Omit<Business, "id" | "created_at">;
+export type BusinessInput = Omit<Business, "id" | "created_at" | "owner_user_id">;
 export type ProductInput = Omit<Product, "id" | "business_id">;
+
+export interface Customer {
+  id: string;
+  business_id: string;
+  name: string;
+  phone: string;
+  created_at: string;
+}
+
+export type CustomerInput = Pick<Customer, "name" | "phone">;
 
 export interface InvoiceLine {
   product: string;

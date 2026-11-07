@@ -1,12 +1,15 @@
 import { useEffect, useState, type FormEvent } from "react";
 
-import {
-  invoicePdfUrl,
-  type EvaluationReport,
-} from "../api";
+import type { EvaluationReport } from "../api";
 import { createProduct, deleteProduct, getProducts, updateProduct } from "../services/productService";
+import {
+  createCustomer,
+  deleteCustomer,
+  getCustomers,
+  updateCustomer,
+} from "../services/customerService";
 import { getBusinessAnalytics, getOrder, getOrders } from "../services/orderService";
-import type { BusinessAnalytics, Order, Product } from "../types/business";
+import type { BusinessAnalytics, Customer, CustomerInput, Order, Product } from "../types/business";
 import { ErrorBanner, Notification, PageTitle, Panel } from "./VoiceDashboard";
 
 export function InventoryPage() {
@@ -168,6 +171,186 @@ function ProductDialog({
   );
 }
 
+export function CustomersPage() {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState<Customer | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  async function refresh(query = search) {
+    setCustomers(await getCustomers(query));
+  }
+
+  useEffect(() => {
+    let active = true;
+    const timeout = window.setTimeout(() => {
+      void getCustomers(search)
+        .then((nextCustomers) => {
+          if (!active) return;
+          setCustomers(nextCustomers);
+          setError(null);
+        })
+        .catch((loadError: unknown) => {
+          if (active) setError(messageOf(loadError));
+        });
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [search]);
+
+  async function save(form: CustomerInput) {
+    setBusy(true);
+    setError(null);
+    try {
+      if (editing) {
+        await updateCustomer(editing.id, form);
+        setNotice("Customer updated");
+      } else {
+        await createCustomer(form);
+        setNotice("Customer added");
+      }
+      setEditing(null);
+      setAdding(false);
+      await refresh();
+    } catch (saveError: unknown) {
+      setError(messageOf(saveError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(customer: Customer) {
+    if (!window.confirm(`Remove ${customer.name} from customers?`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteCustomer(customer.id);
+      setNotice(`${customer.name} removed`);
+      await refresh();
+    } catch (deleteError: unknown) {
+      setError(messageOf(deleteError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <PageTitle page="customers" />
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {notice && <Notification onDismiss={() => setNotice(null)}>{notice}</Notification>}
+      <Panel
+        eyebrow="CUSTOMER DIRECTORY"
+        title="Customers"
+        action={<button className="button button-primary" onClick={() => setAdding(true)} type="button">＋ Add customer</button>}
+      >
+        <div className="order-filters">
+          <label className="search-field">
+            <SearchIcon />
+            <input
+              aria-label="Search customers"
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search name or phone…"
+              value={search}
+            />
+          </label>
+          <span className="count-pill">{customers.length} customers</span>
+        </div>
+        {customers.length ? (
+          <div className="table-wrap">
+            <table className="data-table retail-table">
+              <thead><tr><th>Customer</th><th>Phone number</th><th className="align-right">Actions</th></tr></thead>
+              <tbody>{customers.map((customer) => (
+                <tr key={customer.id}>
+                  <td><strong>{customer.name}</strong></td>
+                  <td>{customer.phone}</td>
+                  <td className="align-right"><span className="row-actions">
+                    <button className="small-action" onClick={() => setEditing(customer)} type="button">Edit</button>
+                    <button className="small-action danger-action" disabled={busy} onClick={() => void remove(customer)} type="button">Delete</button>
+                  </span></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyRetail
+            title={search ? "No customers found" : "No customers yet"}
+            detail={search ? "Try another name or phone number." : "Add a customer to start your directory."}
+          />
+        )}
+      </Panel>
+      {(adding || editing) && (
+        <CustomerDialog
+          busy={busy}
+          initial={editing}
+          onClose={() => { setAdding(false); setEditing(null); }}
+          onSave={save}
+        />
+      )}
+    </>
+  );
+}
+
+function CustomerDialog({
+  initial,
+  busy,
+  onClose,
+  onSave,
+}: {
+  initial: Customer | null;
+  busy: boolean;
+  onClose: () => void;
+  onSave: (value: CustomerInput) => Promise<void>;
+}) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [phone, setPhone] = useState(initial?.phone ?? "");
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedName = name.trim();
+    const normalizedPhone = phone.trim();
+    const phoneDigits = normalizedPhone.replace(/\D/g, "");
+    if (normalizedName.length < 2) {
+      setValidationError("Customer name must be at least 2 characters.");
+      return;
+    }
+    if (!/^\+?[0-9\s()-]{7,20}$/.test(normalizedPhone)
+      || phoneDigits.length < 7
+      || phoneDigits.length > 15) {
+      setValidationError("Enter a valid phone number with 7 to 15 digits.");
+      return;
+    }
+    setValidationError(null);
+    void onSave({ name: normalizedName, phone: normalizedPhone });
+  }
+
+  return (
+    <div className="dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section aria-labelledby="customer-dialog-title" aria-modal="true" className="product-dialog" role="dialog">
+        <div className="panel-heading">
+          <div><span className="panel-eyebrow">CUSTOMER DIRECTORY</span><h2 id="customer-dialog-title">{initial ? "Edit customer" : "Add a customer"}</h2></div>
+          <button aria-label="Close dialog" className="dialog-close" onClick={onClose} type="button">×</button>
+        </div>
+        {validationError && <ErrorBanner message={validationError} onDismiss={() => setValidationError(null)} />}
+        <form className="product-form" onSubmit={submit}>
+          <label>Customer name<input autoFocus maxLength={120} minLength={2} onChange={(event) => setName(event.target.value)} required value={name} /></label>
+          <label>Phone number<input autoComplete="tel" inputMode="tel" maxLength={20} onChange={(event) => setPhone(event.target.value)} required type="tel" value={phone} /></label>
+          <div className="dialog-actions">
+            <button className="button button-secondary" onClick={onClose} type="button">Cancel</button>
+            <button className="button button-primary" disabled={busy} type="submit">{busy ? "Saving…" : "Save customer"}</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
 export function OrdersPage() {
   const [search, setSearch] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -224,7 +407,6 @@ export function OrdersPage() {
             <tbody>{selected.invoice.items?.map((item) => <tr key={item.product}><td><strong>{item.product}</strong></td><td>{item.quantity} {item.unit}</td><td>{formatMoney(item.unit_price_paise)}</td><td className="align-right">{formatMoney(item.line_total_paise)}</td></tr>)}</tbody>
           </table></div>
           <div className="detail-totals"><span>Subtotal <strong>{formatMoney(selected.invoice.subtotal_paise ?? 0)}</strong></span><span>GST included <strong>{formatMoney(selected.invoice.tax_paise ?? 0)}</strong></span><span>Grand total <strong>{formatMoney(selected.invoice.grand_total_paise ?? 0)}</strong></span></div>
-          <a className="button button-primary pdf-link" href={invoicePdfUrl(selected.id)} rel="noreferrer" target="_blank"><DownloadIcon /> Download invoice PDF</a>
         </Panel>
       )}
     </>
@@ -356,8 +538,4 @@ function messageOf(error: unknown): string {
 
 function SearchIcon() {
   return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.7" cy="8.7" r="5.6" stroke="currentColor" strokeWidth="1.5" /><path d="m13 13 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>;
-}
-
-function DownloadIcon() {
-  return <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 2.5v8m0 0 3-3m-3 3-3-3M3.5 12v3h11v-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }

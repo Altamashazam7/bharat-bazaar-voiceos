@@ -34,29 +34,37 @@ Bharat Bazaar VoiceOS uses speech recognition and a retail-aware parsing workflo
 ### Retail operations
 
 - **Catalog and inventory:** add, edit, and remove products; manage categories, aliases, units, prices, and stock; review low-stock and out-of-stock counts.
-- **Orders:** search order history and inspect saved transcript, cart, invoice, and confirmation details.
-- **Invoices:** calculate price-aware line totals and download printable PDF invoices.
+- **Customers:** add, edit, delete, and search store customers by name or phone, scoped to the active business.
+- **Orders:** completed voice and demo orders are persisted to Supabase with their business, transcript, invoice, and creation time; search history and inspect saved invoice details.
+- **Invoices:** calculate price-aware line totals and review invoice details. The legacy shared PDF endpoint is disabled until tenant-scoped downloads are implemented.
 - **Analytics:** review daily and weekly orders, items sold, average order size, revenue, and popular products and categories.
 - **Admin:** access key store operations and benchmark results from a single page.
+- **Tenant isolation:** retail accounts use Supabase Auth and business ownership enforced by database row-level security (RLS).
 - **Demo mode:** process a bundled sample order without manually uploading audio.
 - **Evaluation:** compare recognized carts against the bundled audio benchmark.
+
+Before deploying tenant access, apply the SQL migration in [`supabase/migrations/`](./supabase/migrations/) to the Supabase project. Existing businesses have no owner assigned by the migration and must be explicitly mapped to verified accounts; see the [multi-tenant verification checklist](./docs/multi-tenant-verification.md).
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Browser["React + TypeScript dashboard"] -->|"Audio and retail API requests"| API["FastAPI"]
+    Browser["React + TypeScript dashboard"] -->|"Voice audio + active store catalog"| API["FastAPI"]
+    Browser -->|"Auth and tenant-scoped retail queries"| Supabase["Supabase Auth + RLS"]
+    Supabase --> Retail[("Businesses, products, orders")]
+    Browser -->|"Save transcript, invoice, and timestamp"| Retail
     API --> STT["Gnani Prisma STT"]
     STT --> Split["Transcript and command splitter"]
     Split --> Parse["Quantity extraction and product matching"]
     Parse --> Cart["Structured order cart"]
     Cart --> Invoice["Price-aware invoice"]
-    Invoice --> History[("JSON order history")]
-    Cart --> Stock[("JSON inventory")]
+    API --> Demo["Demo endpoint"]
+    API --> Evaluation["Evaluation endpoint"]
+    Demo --> LocalDemo[("Legacy demo JSON data")]
     Invoice --> PDF["Printable PDF"]
     Invoice --> TTS["Gnani Timbre TTS"]
     TTS --> Browser
-    Parse --> Evaluation["Benchmark comparison"]
+    Parse --> Evaluation
 ```
 
 ### Technology
@@ -68,7 +76,8 @@ flowchart LR
 | Speech recognition | Gnani Prisma STT |
 | Speech synthesis | Gnani Timbre TTS |
 | Product matching | RapidFuzz and catalog aliases |
-| Local persistence | JSON files |
+| Retail tenant data | Supabase Auth and Postgres RLS |
+| Demo/evaluation fixtures | Local JSON files |
 | Quality checks | pytest, TypeScript production build, Oxlint |
 
 ### API overview
@@ -79,14 +88,11 @@ flowchart LR
 | `POST` | `/transcribe-order` | Upload and process an audio order |
 | `POST` | `/demo` | Process the bundled sample audio |
 | `POST` | `/evaluate` | Run the bundled benchmark |
-| `GET` | `/inventory` | Read products and stock-health metrics |
-| `POST` | `/inventory` | Add an inventory product |
-| `PUT` | `/inventory/{product_id}` | Update an inventory product |
-| `DELETE` | `/inventory/{product_id}` | Remove an inventory product |
-| `GET` | `/orders` | Search and list saved orders |
-| `GET` | `/orders/{order_id}` | Read an order snapshot |
-| `GET` | `/orders/{order_id}/invoice.pdf` | Generate and download an order PDF |
-| `GET` | `/analytics` | Read store sales metrics |
+| `GET` / `POST` | `/inventory` | Disabled (HTTP 410); use the authenticated dashboard |
+| `PUT` / `DELETE` | `/inventory/{product_id}` | Disabled (HTTP 410); use the authenticated dashboard |
+| `GET` | `/orders` and `/orders/{order_id}` | Disabled (HTTP 410); use the authenticated dashboard |
+| `GET` | `/orders/{order_id}/invoice.pdf` | Disabled (HTTP 410); no unscoped invoice downloads |
+| `GET` | `/analytics` | Disabled (HTTP 410); use the authenticated dashboard |
 
 Interactive API documentation is available at `/docs` when the backend is running.
 
@@ -198,6 +204,17 @@ The frontend uses `http://127.0.0.1:8000` as its default API URL. To use another
 VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
+### 4. Configure Supabase retail access
+
+Create a Supabase project with email/password sign-in enabled, then apply all SQL migrations in `supabase/migrations/`. Phone OTP is hidden by default; enable it only after configuring the Supabase Phone provider, SMS delivery, and a verified phone identity linked to the account (`VITE_ENABLE_PHONE_OTP=true`). See the [auth and ownership setup guide](./docs/auth-ownership-setup.md). Set the project URL and publishable/anon key in `frontend/.env.local`:
+
+```dotenv
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-public-anon-key
+```
+
+Only the public anon key belongs in frontend configuration; never put a service-role key in the browser. The repair migration copies known legacy `owner_id` values. Designate a pilot administrator by setting server-managed `app_metadata.pilot_admin=true`; verified ownership repairs for remaining businesses are then performed in the app's Pilot Admin screen without per-business SQL.
+
 ## Running locally
 
 Run each service in a separate terminal.
@@ -239,7 +256,7 @@ npm run lint
 2. Open **Demo** in the application and choose **Run Demo**. VoiceOS loads the bundled `order1.m4a` sample automatically.
 3. Review the recognized transcript, extracted commands, product quantities, cart, invoice, and generated confirmation.
 4. Play the generated confirmation audio. Some browsers require a user gesture before audio playback.
-5. Visit **Inventory** to review product stock and prices, **Orders** to inspect the saved order and download its PDF invoice, or **Analytics** to view store metrics.
+5. Visit **Inventory** to review product stock and prices, **Orders** to inspect saved order details, or **Analytics** to view store metrics. Retail pages require a signed-in Supabase account.
 6. Use **Overview** to upload or record another order, or open **Evaluation** to run the benchmark.
 
 The demo requires working Gnani credentials because it performs live transcription and generates a voice confirmation.
@@ -278,11 +295,10 @@ The demo requires working Gnani credentials because it performs live transcripti
 - Inventory and order history are persisted as local JSON under `data/`. The first inventory load seeds products from `catalog/products.json` with 20 units of stock per product.
 - JSON persistence is suitable for a local demo or a single-process setup. It is not a substitute for a transactional database when running multiple workers or serving multiple stores concurrently.
 - Catalog prices are stored as integer paise. The sample invoice treats prices as tax-inclusive at a **5% demo GST rate**; for example, four Amul Butter at ₹58 each and two Parle G at ₹10 each total ₹252, with ₹12 shown as included GST. This is a demonstration assumption, not tax advice. Confirm applicable tax classifications and rules before using invoices for real accounting.
-- The application is a working product prototype. Authentication, tenant isolation, and production-grade database operations are future work.
+- The application is a working product prototype. Apply the Supabase migrations and perform the documented two-account ownership acceptance checks before production use.
 
 ## Future improvements
 
-- Add retailer accounts, authentication, role-based access, and multi-store tenancy.
 - Replace local JSON persistence with a transactional database, backups, and audit history.
 - Configure store branding, tax rules, invoice numbering, and payment workflows.
 - Add stock reservation, fulfillment tracking, and safeguards for insufficient inventory.

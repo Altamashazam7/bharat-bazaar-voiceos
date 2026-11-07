@@ -41,8 +41,8 @@ UNITS = {
 }
 
 
-def load_catalog():
-    return list_products()
+def load_catalog(catalog=None):
+    return list_products() if catalog is None else catalog
 
 
 def _normalize(text: str):
@@ -55,17 +55,17 @@ def _normalize(text: str):
     )
 
 
-def find_product(text: str):
+def find_product(text: str, catalog=None):
     normalized_text = _normalize(text)
     if not normalized_text:
         return None
 
-    catalog = load_catalog()
+    catalog = load_catalog(catalog)
     choices = []
     exact_matches = []
 
     for product in catalog:
-        for alias in product["aliases"]:
+        for alias in product.get("aliases") or [product["name"]]:
             normalized_alias = _normalize(alias)
             if not normalized_alias:
                 continue

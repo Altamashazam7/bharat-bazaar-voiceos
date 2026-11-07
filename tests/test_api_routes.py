@@ -76,34 +76,22 @@ def test_original_and_new_workflow_routes_are_available():
     assert "/analytics" in paths
 
 
-def test_inventory_summary_reports_low_and_out_of_stock(monkeypatch):
-    monkeypatch.setattr(
-        api,
-        "list_products",
-        lambda: [
-            {"id": "a", "stock": 0},
-            {"id": "b", "stock": 2},
-            {"id": "c", "stock": 10},
-        ],
-    )
-
-    report = api.inventory_dashboard()
-
-    assert report["total_products"] == 3
-    assert report["low_stock_items"] == 1
-    assert report["out_of_stock_items"] == 1
-
-
-def test_missing_order_returns_not_found(monkeypatch):
-    def missing_order(order_id):
-        raise KeyError(order_id)
-
-    monkeypatch.setattr(api, "get_order", missing_order)
-
+@pytest.mark.parametrize(
+    "handler, args",
+    [
+        (api.legacy_inventory_api, ()),
+        (api.legacy_inventory_item_api, ("product-id",)),
+        (api.legacy_orders_api, ()),
+        (api.legacy_order_api, ("order-id",)),
+        (api.legacy_invoice_api, ("order-id",)),
+        (api.legacy_analytics_api, ()),
+    ],
+)
+def test_unscoped_legacy_retail_endpoints_are_gone(handler, args):
     with pytest.raises(api.HTTPException) as error:
-        api.order_detail("unknown")
+        handler(*args)
 
-    assert error.value.status_code == 404
+    assert error.value.status_code == 410
 
 
 def test_transcribe_order_converts_webm_before_processing(tmp_path, monkeypatch):
@@ -119,7 +107,23 @@ def test_transcribe_order_converts_webm_before_processing(tmp_path, monkeypatch)
     monkeypatch.setattr(audio_service.subprocess, "run", convert_to_wav)
     processed_paths = []
 
-    def process_audio(audio_path):
+    received_options = []
+
+    def process_audio(audio_path, **options):
+        received_options.append(options)
+        assert options == {
+            "record_order": False,
+            "deduct_inventory": False,
+            "product_catalog": [
+                {
+                    "name": "Maggi",
+                    "aliases": ["Maggi"],
+                    "category": "Noodles",
+                    "unit": "packet",
+                    "price_paise": 1400,
+                }
+            ],
+        }
         processed_paths.append(Path(audio_path))
         assert Path(audio_path).read_bytes() == b"wav audio"
         return {"transcript": "two packets maggi"}
@@ -130,9 +134,15 @@ def test_transcribe_order_converts_webm_before_processing(tmp_path, monkeypatch)
         file=BytesIO(b"webm audio"),
     )
 
-    result = asyncio.run(api.transcribe_order(upload))
+    result = asyncio.run(
+        api.transcribe_order(
+            upload,
+            products='[{"name":"Maggi","aliases":["Maggi"],"category":"Noodles","unit":"packet","price_paise":1400}]',
+        )
+    )
 
     assert result == {"transcript": "two packets maggi"}
+    assert received_options[0]["product_catalog"][0]["price_paise"] == 1400
     assert processed_paths[0].suffix == ".wav"
     assert not processed_paths[0].exists()
     assert list(upload_directory.glob("*.webm"))
@@ -150,14 +160,21 @@ def test_transcribe_order_keeps_m4a_upload_unchanged(tmp_path, monkeypatch):
     monkeypatch.setattr(
         api,
         "process_audio",
-        lambda audio_path: processed_paths.append(Path(audio_path)) or {"ok": True},
+        lambda audio_path, **options: (
+            processed_paths.append(Path(audio_path))
+            or options == {
+                "record_order": False,
+                "deduct_inventory": False,
+                "product_catalog": [],
+            }
+        ) and {"ok": True},
     )
     upload = UploadFile(
         filename="order.m4a",
         file=BytesIO(b"m4a audio"),
     )
 
-    result = asyncio.run(api.transcribe_order(upload))
+    result = asyncio.run(api.transcribe_order(upload, products="[]"))
 
     assert result == {"ok": True}
     assert processed_paths[0].suffix == ".m4a"
@@ -177,7 +194,17 @@ def test_transcribe_order_reports_missing_ffmpeg_for_webm(tmp_path, monkeypatch)
     )
 
     with pytest.raises(api.HTTPException) as error:
-        asyncio.run(api.transcribe_order(upload))
+        asyncio.run(api.transcribe_order(upload, products="[]"))
 
     assert error.value.status_code == 503
     assert "requires FFmpeg" in error.value.detail
+
+
+def test_transcribe_order_rejects_invalid_tenant_catalog():
+    upload = UploadFile(filename="order.m4a", file=BytesIO(b"m4a audio"))
+
+    with pytest.raises(api.HTTPException) as error:
+        asyncio.run(api.transcribe_order(upload, products='[{"name":""}]'))
+
+    assert error.value.status_code == 422
+    assert error.value.detail == "The business product catalog is invalid."

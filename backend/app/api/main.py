@@ -1,47 +1,37 @@
 from pathlib import Path
 import shutil
 import logging
-from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from backend.app.services.audio import (
     AudioConversionError,
     AudioConverterUnavailableError,
     normalize_audio_for_stt,
 )
-from backend.app.services.analytics import build_analytics
 from backend.app.services.evaluation import evaluate_dataset
-from backend.app.services.inventory import (
-    add_product,
-    delete_product,
-    list_products,
-    update_product,
-)
-from backend.app.services.orders import get_order, list_orders
 from backend.app.services.order_workflow import process_audio
-from backend.app.services.pdf_invoice import generate_invoice_pdf
 
 logger = logging.getLogger(__name__)
-LOW_STOCK_THRESHOLD = 5
 UPLOAD_DIRECTORY = Path("uploads")
 
 
-class ProductInput(BaseModel):
-    """Validated inventory create/update payload."""
+class VoiceProduct(BaseModel):
+    """Business-scoped product data used only while processing one voice order."""
 
-    id: str | None = None
     name: str = Field(min_length=1, max_length=120)
-    category: str = Field(min_length=1, max_length=80)
     aliases: list[str] = Field(default_factory=list)
+    category: str = Field(min_length=1, max_length=80)
     unit: str = Field(min_length=1, max_length=30)
     price_paise: int = Field(ge=0)
-    stock: int = Field(ge=0)
+
+
+VOICE_PRODUCT_LIST = TypeAdapter(list[VoiceProduct])
+
 
 app = FastAPI(
     title="Bharat Bazaar VoiceOS"
@@ -97,8 +87,20 @@ def demo_invoice():
 
 @app.post("/transcribe-order")
 async def transcribe_order(
-    audio: UploadFile = File(...)
+    audio: UploadFile = File(...),
+    products: str = Form(...),
 ):
+    try:
+        product_catalog = [
+            product.model_dump()
+            for product in VOICE_PRODUCT_LIST.validate_json(products)
+        ]
+    except ValidationError as error:
+        raise HTTPException(
+            status_code=422,
+            detail="The business product catalog is invalid.",
+        ) from error
+
     UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
     extension = Path((audio.filename or "").replace("\\", "/")).suffix
@@ -127,7 +129,12 @@ async def transcribe_order(
         ) from error
 
     try:
-        return process_audio(str(normalized_path))
+        return process_audio(
+            str(normalized_path),
+            record_order=False,
+            deduct_inventory=False,
+            product_catalog=product_catalog,
+        )
     finally:
         if normalized_path != file_path:
             normalized_path.unlink(missing_ok=True)
@@ -153,100 +160,45 @@ def run_evaluation():
     return evaluate_dataset()
 
 
-@app.get("/inventory")
-def inventory_dashboard() -> dict[str, Any]:
-    """Return products and stock health metrics for the inventory page."""
-    products = list_products()
-    return {
-        "products": products,
-        "total_products": len(products),
-        "low_stock_items": sum(
-            0 < product["stock"] <= LOW_STOCK_THRESHOLD
-            for product in products
-        ),
-        "out_of_stock_items": sum(
-            product["stock"] == 0 for product in products
-        ),
-        "low_stock_threshold": LOW_STOCK_THRESHOLD,
-    }
+LEGACY_RETAIL_API_DETAIL = (
+    "This legacy endpoint is disabled because it does not enforce business ownership. "
+    "Use the authenticated retail dashboard."
+)
 
 
-@app.post("/inventory", status_code=201)
-def create_inventory_product(product: ProductInput) -> dict[str, Any]:
-    """Add a product to retailer inventory."""
-    try:
-        return add_product(product.model_dump(exclude_none=True))
-    except ValueError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
+def _reject_unscoped_retail_api() -> None:
+    raise HTTPException(status_code=410, detail=LEGACY_RETAIL_API_DETAIL)
 
 
-@app.put("/inventory/{product_id}")
-def edit_inventory_product(
-    product_id: str,
-    product: ProductInput,
-) -> dict[str, Any]:
-    """Replace editable product fields while preserving its inventory ID."""
-    changes = product.model_dump(exclude={"id"})
-    try:
-        return update_product(product_id, changes)
-    except KeyError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
+@app.api_route("/inventory", methods=["GET", "POST"], include_in_schema=False)
+def legacy_inventory_api() -> None:
+    _reject_unscoped_retail_api()
 
 
-@app.delete("/inventory/{product_id}", status_code=204)
-def remove_inventory_product(product_id: str) -> None:
-    """Remove a product from the retailer's active inventory."""
-    try:
-        delete_product(product_id)
-    except KeyError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
+@app.api_route(
+    "/inventory/{product_id}",
+    methods=["PUT", "DELETE"],
+    include_in_schema=False,
+)
+def legacy_inventory_item_api(product_id: str) -> None:
+    _reject_unscoped_retail_api()
 
 
-@app.get("/orders")
-def order_history(
-    search: str = Query(default="", max_length=120),
-    status: str | None = Query(default=None, max_length=30),
-    limit: int = Query(default=100, ge=1, le=500),
-) -> dict[str, Any]:
-    """Search and return recent persisted customer orders."""
-    orders = list_orders(search=search, status=status, limit=limit)
-    total = len(list_orders(search=search, status=status, limit=10000))
-    return {"orders": orders, "total": total}
+@app.get("/orders", include_in_schema=False)
+def legacy_orders_api() -> None:
+    _reject_unscoped_retail_api()
 
 
-@app.get("/orders/{order_id}")
-def order_detail(order_id: str) -> dict[str, Any]:
-    """Return the complete transcript, cart, invoice, and confirmation snapshot."""
-    try:
-        return get_order(order_id)
-    except KeyError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
+@app.get("/orders/{order_id}", include_in_schema=False)
+def legacy_order_api(order_id: str) -> None:
+    _reject_unscoped_retail_api()
 
 
-@app.get("/orders/{order_id}/invoice.pdf")
-def download_invoice(order_id: str) -> FileResponse:
-    """Generate and return a retained, printable invoice for an order."""
-    try:
-        order = get_order(order_id)
-    except KeyError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-
-    try:
-        pdf_path = generate_invoice_pdf(order)
-    except (OSError, KeyError, ValueError) as error:
-        logger.exception("Could not generate invoice PDF for %s", order_id)
-        raise HTTPException(
-            status_code=500,
-            detail="Invoice PDF could not be generated.",
-        ) from error
-    return FileResponse(
-        pdf_path,
-        media_type="application/pdf",
-        filename=f"{order_id}-invoice.pdf",
-    )
+@app.get("/orders/{order_id}/invoice.pdf", include_in_schema=False)
+def legacy_invoice_api(order_id: str) -> None:
+    _reject_unscoped_retail_api()
 
 
-@app.get("/analytics")
-def retailer_analytics() -> dict[str, Any]:
-    """Return order, sales, revenue, and product/category metrics."""
-    return build_analytics()
+@app.get("/analytics", include_in_schema=False)
+def legacy_analytics_api() -> None:
+    _reject_unscoped_retail_api()

@@ -1,3 +1,5 @@
+import type { Product } from "./types/business";
+
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL ?? "https://bharat-bazaar-voiceos-2.onrender.com"
 ).replace(/\/$/, "");
@@ -30,41 +32,6 @@ export interface InvoiceLine {
   category: string;
   unit_price_paise: number;
   line_total_paise: number;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  category: string;
-  aliases: string[];
-  unit: string;
-  price_paise: number;
-  stock: number;
-}
-
-export interface InventoryReport {
-  products: Product[];
-  total_products: number;
-  low_stock_items: number;
-  out_of_stock_items: number;
-  low_stock_threshold: number;
-}
-
-export interface OrderRecord extends OrderResult {
-  order_id: string;
-  timestamp: string;
-}
-
-export interface AnalyticsReport {
-  orders_today: number;
-  orders_this_week: number;
-  products_sold: number;
-  average_order_size: number;
-  revenue_paise: number;
-  revenue: string;
-  weekly_revenue_paise: number;
-  top_products: { product: string; quantity: number }[];
-  top_categories: { category: string; quantity: number }[];
 }
 
 export interface EvaluationRow {
@@ -103,9 +70,16 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
-export async function transcribeOrder(file: File): Promise<OrderResult> {
+export async function transcribeOrder(file: File, products: Product[]): Promise<OrderResult> {
   const formData = new FormData();
   formData.append("audio", file);
+  formData.append("products", JSON.stringify(products.map((product) => ({
+    name: product.name,
+    aliases: product.aliases ?? [product.name],
+    category: product.category,
+    unit: product.unit,
+    price_paise: product.price_paise,
+  }))));
 
   return request<OrderResult>("/transcribe-order", {
     method: "POST",
@@ -119,55 +93,6 @@ export function runDemo(): Promise<OrderResult> {
 
 export function runEvaluation(): Promise<EvaluationReport> {
   return request<EvaluationReport>("/evaluate", { method: "POST" });
-}
-
-export function getInventory(): Promise<InventoryReport> {
-  return request<InventoryReport>("/inventory");
-}
-
-export function createProduct(product: Omit<Product, "id">): Promise<Product> {
-  return request<Product>("/inventory", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(product),
-  });
-}
-
-export function updateProduct(product: Product): Promise<Product> {
-  return request<Product>(`/inventory/${encodeURIComponent(product.id)}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(product),
-  });
-}
-
-export function deleteProduct(productId: string): Promise<void> {
-  return request<void>(`/inventory/${encodeURIComponent(productId)}`, {
-    method: "DELETE",
-  });
-}
-
-export function getOrders(
-  search = "",
-  status = "",
-): Promise<{ orders: OrderRecord[]; total: number }> {
-  const query = new URLSearchParams();
-  if (search) query.set("search", search);
-  if (status) query.set("status", status);
-  const suffix = query.size ? `?${query.toString()}` : "";
-  return request(`/orders${suffix}`);
-}
-
-export function getOrder(orderId: string): Promise<OrderRecord> {
-  return request<OrderRecord>(`/orders/${encodeURIComponent(orderId)}`);
-}
-
-export function getAnalytics(): Promise<AnalyticsReport> {
-  return request<AnalyticsReport>("/analytics");
-}
-
-export function invoicePdfUrl(orderId: string): string {
-  return `${API_BASE}/orders/${encodeURIComponent(orderId)}/invoice.pdf`;
 }
 
 export function audioUrl(audioPath: string | null): string | null {

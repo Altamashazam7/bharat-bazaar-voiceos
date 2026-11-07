@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-import { getCurrentBusiness } from "./businessService";
+import { getCurrentBusiness, getOwnedBusiness } from "./businessService";
 import type { BusinessAnalytics, Order, OrderInput } from "../types/business";
 
 export async function getOrders(
@@ -38,8 +38,14 @@ export async function getOrder(orderId: string): Promise<Order> {
   return data as Order;
 }
 
-export async function createOrder(input: OrderInput): Promise<Order> {
-  const business = await getCurrentBusiness();
+export async function createOrder(
+  input: OrderInput,
+  activeBusinessId?: string,
+): Promise<Order> {
+  const business = activeBusinessId
+    ? await getOwnedBusiness(activeBusinessId)
+    : await getCurrentBusiness();
+  console.debug("[tenant] persisting order for business_id=%s", business.id);
   const { data, error } = await supabase
     .from("orders")
     .insert({ ...input, business_id: business.id })

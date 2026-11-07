@@ -1,19 +1,25 @@
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 
 import { audioUrl, type EvaluationReport, type OrderResult } from "../api";
 import { AudioRecorder } from "./AudioRecorder";
 import { BusinessSelector } from "./BusinessSelector";
 
-export type Page = "overview" | "inventory" | "orders" | "analytics" | "admin" | "evaluation" | "demo";
+export type Page = "overview" | "inventory" | "customers" | "orders" | "analytics" | "admin" | "pilot-admin" | "evaluation" | "demo" | "store-registration" | "business-login";
 
 interface HeaderProps {
   page: Page;
   onNavigate: (page: Page) => void;
   onBusinessChange: (businessId: string | null) => void;
   onBusinessLoadComplete: (loaded: boolean) => void;
+  onBusinessLogin: () => void;
+  onPilotAdmin: () => void;
+  businessListVersion: number;
 }
 
-export function Header({ page, onNavigate, onBusinessChange, onBusinessLoadComplete }: HeaderProps) {
+export function Header({ page, onNavigate, onBusinessChange, onBusinessLoadComplete, onBusinessLogin, onPilotAdmin, businessListVersion }: HeaderProps) {
+  const createStore = useCallback(() => onNavigate("store-registration"), [onNavigate]);
+  const authSuccess = useCallback(() => onNavigate("overview"), [onNavigate]);
+
   return (
     <header className="topbar">
       <button className="brand" onClick={() => onNavigate("overview")} type="button">
@@ -27,9 +33,11 @@ export function Header({ page, onNavigate, onBusinessChange, onBusinessLoadCompl
         {([
           ["overview", "Overview"],
           ["inventory", "Inventory"],
+          ["customers", "Customers"],
           ["orders", "Orders"],
           ["analytics", "Analytics"],
           ["admin", "Admin"],
+          ["pilot-admin", "Pilot Admin"],
           ["evaluation", "Evaluation"],
           ["demo", "Demo mode"],
         ] as const).map(([id, label]) => (
@@ -43,7 +51,15 @@ export function Header({ page, onNavigate, onBusinessChange, onBusinessLoadCompl
           </button>
         ))}
       </nav>
-      <BusinessSelector onBusinessChange={onBusinessChange} onLoadComplete={onBusinessLoadComplete} />
+      <BusinessSelector
+        businessListVersion={businessListVersion}
+        onAuthSuccess={authSuccess}
+        onBusinessChange={onBusinessChange}
+        onBusinessLogin={onBusinessLogin}
+        onPilotAdmin={onPilotAdmin}
+        onCreateStore={createStore}
+        onLoadComplete={onBusinessLoadComplete}
+      />
       <span className="topbar-tag"><span className="status-dot" /> Live demo</span>
     </header>
   );
@@ -417,11 +433,15 @@ export function PageTitle({ page }: { page: Page }) {
   const headings: Record<Page, { eyebrow: string; title: string; detail: string }> = {
     overview: { eyebrow: "YOUR VOICE COMMERCE WORKSPACE", title: "Good morning, retailer.", detail: "A simpler way to take every order, accurately." },
     inventory: { eyebrow: "STOCK & CATALOG", title: "Inventory management", detail: "Keep products, prices, and stock ready for every order." },
+    customers: { eyebrow: "CUSTOMER DIRECTORY", title: "Customer management", detail: "Keep customer contact details organized for your store." },
     orders: { eyebrow: "CUSTOMER ACTIVITY", title: "Order history", detail: "Search and review every saved voice order." },
     analytics: { eyebrow: "RETAIL PERFORMANCE", title: "Business analytics", detail: "See order activity and what your customers buy most." },
     admin: { eyebrow: "STORE OPERATIONS", title: "Retail admin", detail: "Manage inventory, review orders, and monitor store performance." },
+    "pilot-admin": { eyebrow: "PILOT OPERATIONS", title: "Pilot Admin", detail: "Repair verified business ownership and prepare demo stores." },
     evaluation: { eyebrow: "QUALITY ASSURANCE", title: "Evaluation dashboard", detail: "Measure cart accuracy across the bundled voice-order benchmark." },
     demo: { eyebrow: "PRODUCT WALKTHROUGH", title: "See VoiceOS in action", detail: "One sample order. The complete voice-commerce journey." },
+    "store-registration": { eyebrow: "BUSINESS SETUP", title: "Create a new store", detail: "Register your store to manage its inventory, orders, and performance." },
+    "business-login": { eyebrow: "BUSINESS ACCOUNT", title: "Business login", detail: "Phone OTP is optional; use it only when configured for this project." },
   };
   const heading = headings[page];
   return <div className="page-title"><span className="section-kicker">{heading.eyebrow}</span><h1>{heading.title}</h1><p>{heading.detail}</p></div>;

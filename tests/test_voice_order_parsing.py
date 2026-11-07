@@ -101,6 +101,56 @@ def test_fuzzy_product_match_respects_confidence_threshold():
     assert find_product("xyz") is None
 
 
+def test_order_parsing_uses_provided_business_catalog(monkeypatch):
+    from backend.app.services import parser
+
+    monkeypatch.setattr(
+        parser,
+        "list_products",
+        lambda: pytest.fail("Tenant catalog parsing must not read shared inventory."),
+    )
+    business_catalog = [
+        {
+            "name": "Business Special Tea",
+            "category": "Tea",
+            "unit": "packet",
+            "price_paise": 2500,
+        },
+    ]
+
+    parsed = parse_order("two packets special tea", catalog=business_catalog)
+
+    assert parsed["product"] == "Business Special Tea"
+    assert parsed["quantity"] == 2
+    assert parsed["confidence"] >= parser.CONFIDENCE_THRESHOLD
+
+
+def test_order_parsing_falls_back_to_product_name_when_aliases_are_empty(monkeypatch):
+    from backend.app.services import parser
+
+    monkeypatch.setattr(
+        parser,
+        "list_products",
+        lambda: pytest.fail("Tenant catalog parsing must not read shared inventory."),
+    )
+    parsed = parse_order(
+        "one packet business tea",
+        catalog=[
+            {
+                "name": "Business Tea",
+                "aliases": [],
+                "category": "Tea",
+                "unit": "packet",
+                "price_paise": 2500,
+            }
+        ],
+    )
+
+    assert parsed is not None
+    assert parsed["product"] == "Business Tea"
+    assert parsed["quantity"] == 1
+
+
 def test_splitter_keeps_quantity_words_attached_to_their_units():
     assert split_commands(
         "three packet maggie two packet good day biscuit one kilo tata salt"

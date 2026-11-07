@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import {
   runDemo,
@@ -23,9 +23,16 @@ import {
 import {
   AdminPage,
   AnalyticsPage,
+  CustomersPage,
   InventoryPage,
   OrdersPage,
 } from "./components/RetailPages";
+import { StoreRegistrationPage } from "./components/StoreRegistrationPage";
+import { BusinessLoginPage } from "./components/BusinessLoginPage";
+import { PilotAdminPage } from "./components/PilotAdminPage";
+import type { Business } from "./types/business";
+import { createOrder } from "./services/orderService";
+import { getProducts } from "./services/productService";
 
 type Operation = "upload" | "demo" | "evaluation";
 
@@ -38,6 +45,8 @@ function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [activeBusinessId, setActiveBusinessId] = useState<string | null>(null);
   const [businessesLoaded, setBusinessesLoaded] = useState(false);
+  const [businessListVersion, setBusinessListVersion] = useState(0);
+  const navigateToPilotAdmin = useCallback(() => setPage("pilot-admin"), []);
 
   useEffect(() => {
     if (!notice) return;
@@ -46,6 +55,7 @@ function App() {
   }, [notice]);
 
   async function handleUpload(file: File) {
+    const businessId = activeBusinessId;
     setPage("overview");
     setOperation("upload");
     setResult(null);
@@ -53,11 +63,14 @@ function App() {
     setNotice(null);
 
     try {
-      const order = await transcribeOrder(file);
+      if (!businessId) throw new Error("Select a store before processing a voice order.");
+      const products = await getProducts(businessId);
+      const order = await transcribeOrder(file, products);
       setResult(order);
+      await persistProcessedOrder(order, businessId);
       setNotice(`Order processed from ${file.name}`);
     } catch (requestError) {
-      setError(errorMessage(requestError, "We could not process that audio file."));
+      setError(errorMessage(requestError, "We could not process and save that audio order."));
     } finally {
       setOperation(null);
     }
@@ -72,9 +85,10 @@ function App() {
     try {
       const order = await runDemo();
       setResult(order);
+      await persistProcessedOrder(order, activeBusinessId);
       setNotice("Demo order processed successfully");
     } catch (requestError) {
-      setError(errorMessage(requestError, "The demo order could not be processed."));
+      setError(errorMessage(requestError, "The demo order could not be processed and saved."));
     } finally {
       setOperation(null);
     }
@@ -106,6 +120,9 @@ function App() {
         onNavigate={setPage}
         onBusinessChange={setActiveBusinessId}
         onBusinessLoadComplete={setBusinessesLoaded}
+        onBusinessLogin={() => setPage("business-login")}
+        onPilotAdmin={navigateToPilotAdmin}
+        businessListVersion={businessListVersion}
       />
       <main className="main-content">
         {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
@@ -157,6 +174,12 @@ function App() {
           </BusinessGate>
         )}
 
+        {page === "customers" && (
+          <BusinessGate businessId={activeBusinessId} loaded={businessesLoaded}>
+            <CustomersPage key={activeBusinessId ?? "no-business"} />
+          </BusinessGate>
+        )}
+
         {page === "orders" && (
           <BusinessGate businessId={activeBusinessId} loaded={businessesLoaded}>
             <OrdersPage key={activeBusinessId ?? "no-business"} />
@@ -183,6 +206,21 @@ function App() {
             result={result}
           />
         )}
+
+        {page === "store-registration" && (
+          <StoreRegistrationPage onCreated={handleBusinessCreated} />
+        )}
+
+        {page === "business-login" && (
+          <BusinessLoginPage
+            onEmailLogin={() => setPage("overview")}
+            onLoggedIn={handleBusinessLogin}
+          />
+        )}
+
+        {page === "pilot-admin" && (
+          <PilotAdminPage onAssigned={handleBusinessCreated} />
+        )}
       </main>
       <footer className="app-footer">
         <span><span className="footer-mark">B</span> Bharat Bazaar VoiceOS</span>
@@ -191,6 +229,41 @@ function App() {
       {notice && <Notification onDismiss={() => setNotice(null)}>{notice}</Notification>}
     </div>
   );
+
+  function handleBusinessCreated(business: Business) {
+    setActiveBusinessId(business.id);
+    setBusinessListVersion((version) => version + 1);
+    setPage("overview");
+    setNotice(`${business.name} is ready`);
+  }
+
+  function handleBusinessLogin(business: Business) {
+    setActiveBusinessId(business.id);
+    setBusinessesLoaded(true);
+    setBusinessListVersion((version) => version + 1);
+    setPage("overview");
+    setNotice(`Welcome back to ${business.name}`);
+  }
+
+  async function persistProcessedOrder(
+    order: OrderResult,
+    businessId: string | null,
+  ): Promise<void> {
+    try {
+      await createOrder(
+        {
+          transcript: order.transcript,
+          invoice: order.invoice,
+          created_at: order.timestamp ?? new Date().toISOString(),
+        },
+        businessId ?? undefined,
+      );
+    } catch (saveError: unknown) {
+      throw new Error(
+        `Voice order was processed but could not be saved: ${errorMessage(saveError, "Select a store and try again.")}`,
+      );
+    }
+  }
 }
 
 function BusinessGate({

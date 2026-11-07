@@ -21,6 +21,7 @@ def process_audio(
     *,
     record_order: bool = True,
     deduct_inventory: bool = True,
+    product_catalog: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Transcribe an order, create its cart and invoice, and optionally synthesize speech."""
     from gnani.stt import GnaniSTTClient
@@ -29,14 +30,30 @@ def process_audio(
     result = client.transcribe(audio_path, language_code="en-IN")
     transcript = result["transcript"]
 
-    session = OrderSession()
+    session = (
+        OrderSession()
+        if product_catalog is None
+        else OrderSession(catalog=product_catalog)
+    )
     commands = split_commands(transcript)
     cart = session.cart.get_items()
     for command in commands:
         cart = session.handle(command)
 
-    invoice = generate_invoice(cart, write_to_disk=record_order)
-    confirmation_text = build_confirmation(cart, invoice)
+    if product_catalog is None:
+        invoice = generate_invoice(cart, write_to_disk=record_order)
+        confirmation_text = build_confirmation(cart, invoice)
+    else:
+        invoice = generate_invoice(
+            cart,
+            product_catalog=product_catalog,
+            write_to_disk=False,
+        )
+        confirmation_text = build_confirmation(
+            cart,
+            invoice,
+            product_catalog=product_catalog,
+        )
     audio_file = None
     if include_audio:
         from backend.app.services.tts_service import generate_speech
@@ -51,11 +68,11 @@ def process_audio(
         "confirmation_text": confirmation_text,
         "confirmation_audio": audio_file,
     }
-    if record_order:
+    if record_order and product_catalog is None:
         saved_order = save_order(order)
         order["order_id"] = saved_order["order_id"]
         order["timestamp"] = saved_order["timestamp"]
         logger.info("Saved VoiceOS order %s", saved_order["order_id"])
-    if deduct_inventory:
+    if deduct_inventory and product_catalog is None:
         deduct_stock(cart)
     return order

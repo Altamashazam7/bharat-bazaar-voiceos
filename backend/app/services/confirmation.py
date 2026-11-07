@@ -66,12 +66,24 @@ def number_to_words(number: int) -> str:
 def build_confirmation(
     cart: dict[str, int],
     invoice: dict[str, Any] | None = None,
+    product_catalog: list[dict[str, Any]] | None = None,
 ) -> str:
     """Build a natural spoken summary of products and the priced order total."""
     lines = ["Your order has been confirmed."]
 
     for product, quantity in cart.items():
-        record = find_by_name(product)
+        record = (
+            find_by_name(product)
+            if product_catalog is None
+            else next(
+                (
+                    candidate
+                    for candidate in product_catalog
+                    if candidate["name"].casefold() == product.casefold()
+                ),
+                None,
+            )
+        )
         unit = record.get("unit", "unit") if record else "unit"
         unit_names = {
             "kg": ("kilogram", "kilograms"),

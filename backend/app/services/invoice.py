@@ -18,6 +18,7 @@ def _format_rupees(amount_paise: int) -> str:
 def generate_invoice(
     cart: dict[str, int],
     *,
+    product_catalog: list[dict[str, Any]] | None = None,
     tax_rate_bps: int = TAX_RATE_BPS,
     store_name: str = "Bharat Bazaar",
     write_to_disk: bool = True,
@@ -25,7 +26,9 @@ def generate_invoice(
     """Create a price-aware invoice while retaining the legacy text and item count."""
     products_by_name = {
         product["name"].casefold(): product
-        for product in list_products()
+        for product in (
+            list_products() if product_catalog is None else product_catalog
+        )
     }
 
     items = []

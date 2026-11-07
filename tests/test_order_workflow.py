@@ -1,7 +1,9 @@
 import sys
 from types import ModuleType
 
-from backend.app.services import order_workflow
+import pytest
+
+from backend.app.services import confirmation, invoice, order_workflow
 
 
 class FakeSession:
@@ -109,3 +111,119 @@ def test_order_workflow_records_order_and_updates_inventory(monkeypatch):
     assert result["order_id"] == "BB-123"
     assert result["timestamp"].startswith("2026-11-02")
     assert deducted == [{"Maggi": 2}]
+
+
+def test_tenant_order_uses_business_catalog_without_shared_json_writes(monkeypatch):
+    install_fake_stt(monkeypatch, "two packets maggi")
+
+    class TenantSession(FakeSession):
+        def __init__(self, catalog):
+            super().__init__()
+            assert catalog == [
+                {
+                    "name": "Maggi",
+                    "aliases": ["Maggi"],
+                    "category": "Noodles",
+                    "unit": "packet",
+                    "price_paise": 1400,
+                }
+            ]
+
+    monkeypatch.setattr(order_workflow, "OrderSession", TenantSession)
+    invoices = []
+    monkeypatch.setattr(
+        order_workflow,
+        "generate_invoice",
+        lambda cart, **options: (
+            invoices.append(options)
+            or {
+                "text": "tenant invoice",
+                "total_items": sum(cart.values()),
+                "grand_total_paise": 2800,
+            }
+        ),
+    )
+    confirmations = []
+    monkeypatch.setattr(
+        order_workflow,
+        "build_confirmation",
+        lambda cart, invoice, **options: (
+            confirmations.append(options)
+            or "Your business order is confirmed."
+        ),
+    )
+    monkeypatch.setattr(
+        order_workflow,
+        "save_order",
+        lambda _order: pytest.fail("Tenant order must be persisted by the Supabase client."),
+    )
+    monkeypatch.setattr(
+        order_workflow,
+        "deduct_stock",
+        lambda _cart: pytest.fail("Tenant processing must not mutate shared JSON stock."),
+    )
+
+    catalog = [
+        {
+            "name": "Maggi",
+            "aliases": ["Maggi"],
+            "category": "Noodles",
+            "unit": "packet",
+            "price_paise": 1400,
+        }
+    ]
+    result = order_workflow.process_audio(
+        "sample.m4a",
+        include_audio=False,
+        product_catalog=catalog,
+    )
+
+    assert result["invoice"]["grand_total_paise"] == 2800
+    assert invoices == [{"product_catalog": catalog, "write_to_disk": False}]
+    assert confirmations == [{"product_catalog": catalog}]
+
+
+def test_tenant_invoice_and_confirmation_use_only_business_catalog(
+    tmp_path,
+    monkeypatch,
+):
+    catalog = [
+        {
+            "name": "Maggi",
+            "aliases": [],
+            "category": "Noodles",
+            "unit": "packet",
+            "price_paise": 1400,
+        }
+    ]
+    monkeypatch.setattr(
+        invoice,
+        "list_products",
+        lambda: pytest.fail("Tenant invoice must not read shared inventory."),
+    )
+    monkeypatch.setattr(
+        invoice,
+        "INVOICE_DIRECTORY",
+        tmp_path,
+    )
+    monkeypatch.setattr(
+        confirmation,
+        "find_by_name",
+        lambda _name: pytest.fail("Tenant confirmation must not read shared inventory."),
+    )
+
+    order_invoice = invoice.generate_invoice(
+        {"Maggi": 2},
+        product_catalog=catalog,
+        write_to_disk=False,
+    )
+    spoken_confirmation = confirmation.build_confirmation(
+        {"Maggi": 2},
+        order_invoice,
+        product_catalog=catalog,
+    )
+
+    assert order_invoice["grand_total_paise"] == 2800
+    assert order_invoice["items"][0]["unit"] == "packet"
+    assert not list(tmp_path.iterdir())
+    assert "Two packets of Maggi." in spoken_confirmation

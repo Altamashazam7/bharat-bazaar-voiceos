@@ -1,9 +1,11 @@
 import { supabase } from "../lib/supabase";
-import { getCurrentBusiness } from "./businessService";
+import { getCurrentBusiness, getOwnedBusiness } from "./businessService";
 import type { Product, ProductInput } from "../types/business";
 
-export async function getProducts(): Promise<Product[]> {
-  const business = await getCurrentBusiness();
+export async function getProducts(businessId?: string): Promise<Product[]> {
+  const business = businessId
+    ? await getOwnedBusiness(businessId)
+    : await getCurrentBusiness();
   const { data, error } = await supabase
     .from("products")
     .select("*")
