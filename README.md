@@ -29,17 +29,20 @@ Bharat Bazaar VoiceOS uses speech recognition and a retail-aware parsing workflo
 - Split multi-product orders and extract spoken quantities.
 - Match product names and pronunciation variants against the catalog.
 - Handle spoken corrections before generating the final cart.
+- Track upload, transcription, parsing, invoice, and audio-generation progress; show transcript confidence when the speech response provides it, product-match confidence, and applied quantity corrections.
 - Create natural-language confirmations and audio with **Gnani Timbre TTS**.
 
 ### Retail operations
 
 - **Catalog and inventory:** add, edit, and remove products; manage categories, aliases, units, prices, and stock; review low-stock and out-of-stock counts.
 - **Customers:** add, edit, delete, and search store customers by name or phone, scoped to the active business.
-- **Orders:** completed voice and demo orders are persisted to Supabase with their business, transcript, invoice, and creation time; search history and inspect saved invoice details.
+- **Orders:** completed voice and demo orders are persisted to Supabase with their business, transcript, invoice, and creation time; search history, inspect saved invoice details, and create a repeat order from an existing saved order.
+- **Settings:** edit the active store's name, owner name, and phone under authenticated business ownership. Address and GST are not persisted because the current schema has no fields for them.
 - **Invoices:** calculate price-aware line totals and review invoice details. The legacy shared PDF endpoint is disabled until tenant-scoped downloads are implemented.
-- **Analytics:** review daily and weekly orders, items sold, average order size, revenue, and popular products and categories.
+- **Executive dashboard:** review today's revenue and orders, top products, low-stock alerts, current inventory value, customers on file, and seven-day revenue/order trends, alongside existing category and sales analytics.
 - **Admin:** access key store operations and benchmark results from a single page.
 - **Tenant isolation:** retail accounts use Supabase Auth and business ownership enforced by database row-level security (RLS).
+- **Customer records:** customer search and CRUD are business-scoped. The current schema does not associate an order with a customer, so per-customer order history and customer-specific frequent orders are not available.
 - **Demo mode:** process a bundled sample order without manually uploading audio.
 - **Evaluation:** compare recognized carts against the bundled audio benchmark.
 
@@ -214,6 +217,26 @@ VITE_SUPABASE_ANON_KEY=your-public-anon-key
 ```
 
 Only the public anon key belongs in frontend configuration; never put a service-role key in the browser. The repair migration copies known legacy `owner_id` values. Designate a pilot administrator by setting server-managed `app_metadata.pilot_admin=true`; verified ownership repairs for remaining businesses are then performed in the app's Pilot Admin screen without per-business SQL.
+
+Inventory supports search, stock/category filters, sorting, pagination, and tenant-scoped CSV import/export. Apply `supabase/migrations/20261107000700_product_image_url.sql` before using product image URLs. CSV imports add rows to the currently selected business; the exported CSV includes `name,category,unit,price_paise,stock,image_url,aliases` columns.
+
+### Demo-only authentication
+
+For a demo or professor-review deployment, configure a dedicated, least-privilege
+Supabase demo account that owns the `Sharma Kirana` business, then set:
+
+```dotenv
+VITE_DEMO_MODE=true
+VITE_DEMO_EMAIL=demo-account@example.com
+VITE_DEMO_PASSWORD=demo-account-password
+```
+
+Demo mode automatically signs in as that account, selects its `Sharma Kirana`
+business, and hides interactive sign-in/sign-out controls. The `VITE_` demo
+credentials are included in the public frontend bundle; use only a dedicated
+demo account with demo data and never reuse a production password or privileged
+account. Keep `VITE_DEMO_MODE` unset or set to `false` for normal deployments;
+in that case the existing email authentication flow is unchanged.
 
 ## Running locally
 

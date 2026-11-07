@@ -4,19 +4,20 @@ import { audioUrl, type EvaluationReport, type OrderResult } from "../api";
 import { AudioRecorder } from "./AudioRecorder";
 import { BusinessSelector } from "./BusinessSelector";
 
-export type Page = "overview" | "inventory" | "customers" | "orders" | "analytics" | "admin" | "pilot-admin" | "evaluation" | "demo" | "store-registration" | "business-login";
+export type Page = "overview" | "inventory" | "customers" | "orders" | "analytics" | "admin" | "settings" | "pilot-admin" | "evaluation" | "demo" | "store-registration" | "business-login";
 
 interface HeaderProps {
   page: Page;
   onNavigate: (page: Page) => void;
-  onBusinessChange: (businessId: string | null) => void;
+  onBusinessChange: (businessId: string | null, businessName: string | null) => void;
   onBusinessLoadComplete: (loaded: boolean) => void;
   onBusinessLogin: () => void;
   onPilotAdmin: () => void;
+  onNotice: (message: string) => void;
   businessListVersion: number;
 }
 
-export function Header({ page, onNavigate, onBusinessChange, onBusinessLoadComplete, onBusinessLogin, onPilotAdmin, businessListVersion }: HeaderProps) {
+export function Header({ page, onNavigate, onBusinessChange, onBusinessLoadComplete, onBusinessLogin, onPilotAdmin, onNotice, businessListVersion }: HeaderProps) {
   const createStore = useCallback(() => onNavigate("store-registration"), [onNavigate]);
   const authSuccess = useCallback(() => onNavigate("overview"), [onNavigate]);
 
@@ -37,6 +38,7 @@ export function Header({ page, onNavigate, onBusinessChange, onBusinessLoadCompl
           ["orders", "Orders"],
           ["analytics", "Analytics"],
           ["admin", "Admin"],
+          ["settings", "Settings"],
           ["pilot-admin", "Pilot Admin"],
           ["evaluation", "Evaluation"],
           ["demo", "Demo mode"],
@@ -57,6 +59,7 @@ export function Header({ page, onNavigate, onBusinessChange, onBusinessLoadCompl
         onBusinessChange={onBusinessChange}
         onBusinessLogin={onBusinessLogin}
         onPilotAdmin={onPilotAdmin}
+        onNotice={onNotice}
         onCreateStore={createStore}
         onLoadComplete={onBusinessLoadComplete}
       />
@@ -163,48 +166,113 @@ export function UploadCard({ busy, disabled, onFile, onRecordingError }: UploadC
 interface ProgressProps {
   complete: boolean;
   active: boolean;
+  currentStep: number | null;
+  progress: number;
+  failed: boolean;
+  businessName: string | null;
+  saveState: "idle" | "saving" | "saved" | "failed";
 }
 
-export function ProcessingSteps({ complete, active }: ProgressProps) {
+export function ProcessingSteps({
+  complete,
+  active,
+  currentStep,
+  progress,
+  failed,
+  businessName,
+  saveState,
+}: ProgressProps) {
   const steps = [
-    "Audio uploaded",
-    "Speech recognized",
-    "Commands extracted",
-    "Cart generated",
-    "Invoice generated",
-    "Voice confirmation ready",
+    "Uploading",
+    "Transcribing",
+    "Parsing",
+    "Invoice Generation",
+    "Audio Generation",
   ];
 
   return (
-    <Panel eyebrow="ORDER PIPELINE" title="Processing status" className="progress-panel">
-      <ol className="progress-list">
+    <Panel
+      eyebrow="ORDER PIPELINE"
+      title={businessName ? `Order for ${businessName}` : "Processing status"}
+      className="progress-panel"
+    >
+      <div className="pipeline-progress" role="progressbar" aria-valuenow={complete ? 100 : progress} aria-valuemin={0} aria-valuemax={100} aria-label="Voice order processing progress">
+        <span><i style={{ width: `${complete ? 100 : progress}%` }} /></span>
+        <strong>{complete ? 100 : progress}%</strong>
+      </div>
+      <ol aria-live="polite" className="progress-list">
         {steps.map((step, index) => (
-          <li className={`${complete ? "is-complete" : ""}${active && !complete && index === 0 ? " is-active" : ""}`} key={step}>
+          <li
+            className={`${complete || (!failed && currentStep !== null && index < currentStep) ? "is-complete" : ""}${active && !complete && index === currentStep ? " is-active" : ""}${failed && index === currentStep ? " is-failed" : ""}`}
+            key={step}
+          >
             <span className="progress-marker">
-              {complete ? <CheckIcon /> : active && index === 0 ? <span className="spinner spinner-step" /> : index + 1}
+              {failed && index === currentStep
+                ? "!"
+                : complete || (currentStep !== null && index < currentStep)
+                ? <CheckIcon />
+                : active && index === currentStep
+                  ? <span className="spinner spinner-step" />
+                  : index + 1}
             </span>
             <span>{step}</span>
-            <span className="progress-state">{complete ? "Done" : active && index === 0 ? "In progress" : "Waiting"}</span>
+            <span className="progress-state">
+              {failed && index === currentStep
+                ? "Failed"
+                : complete || (currentStep !== null && index < currentStep)
+                ? "Done"
+                : active && index === currentStep
+                  ? index === 0 ? `${progress * 5}%` : "In progress"
+                  : "Waiting"}
+            </span>
           </li>
         ))}
       </ol>
-      {!complete && <p className="muted-caption">Your order summary will appear here after audio processing.</p>}
+      <p className={`pipeline-save-state save-${saveState}`} role="status">
+        {saveState === "saved"
+          ? `Order saved automatically${businessName ? ` to ${businessName}` : ""}.`
+          : saveState === "saving"
+            ? "Saving your completed order…"
+            : saveState === "failed"
+              ? "Your order is processed, but needs to be saved."
+              : complete
+                ? "Order processing complete."
+                : active
+                  ? "Your order is being processed."
+                  : "Your order summary will appear here after audio processing."}
+      </p>
     </Panel>
   );
 }
 
 interface OrderSectionsProps {
   result: OrderResult;
+  businessName: string | null;
   autoPlayAudio?: boolean;
 }
 
-export function OrderSections({ result, autoPlayAudio = false }: OrderSectionsProps) {
+export function OrderSections({ result, businessName, autoPlayAudio = false }: OrderSectionsProps) {
   const products = Object.entries(result.cart);
+  const extractedByProduct = new Map(
+    (result.extracted_products ?? []).map((product) => [product.product, product]),
+  );
 
   return (
     <div className="result-grid">
       <Panel eyebrow="SPEECH RECOGNITION" title="Transcript" className="transcript-panel">
         <div className="transcript-quote"><span aria-hidden="true">“</span>{result.transcript}</div>
+        <div className="transcript-confidence">
+          <span>Transcript confidence</span>
+          <strong>{result.transcript_confidence === null || result.transcript_confidence === undefined
+            ? "Not provided by speech provider"
+            : `${result.transcript_confidence}%`}</strong>
+        </div>
+        {result.product_match_confidence !== null && result.product_match_confidence !== undefined && (
+          <div className="transcript-confidence">
+            <span>Product match confidence</span>
+            <strong>{result.product_match_confidence}%</strong>
+          </div>
+        )}
       </Panel>
 
       <Panel
@@ -229,7 +297,7 @@ export function OrderSections({ result, autoPlayAudio = false }: OrderSectionsPr
 
       <Panel
         eyebrow="READY TO FULFIL"
-        title="Your cart"
+        title="Extracted products"
         action={<span className="count-pill">{products.length} products</span>}
         className="cart-panel"
       >
@@ -240,7 +308,15 @@ export function OrderSections({ result, autoPlayAudio = false }: OrderSectionsPr
               <tbody>
                 {products.map(([product, quantity], index) => (
                   <tr key={product}>
-                    <td><span className="product-index">{String(index + 1).padStart(2, "0")}</span><strong>{product}</strong></td>
+                    <td>
+                      <span className="product-index">{String(index + 1).padStart(2, "0")}</span>
+                      <strong>{product}</strong>
+                      {extractedByProduct.has(product) && (
+                        <small className="product-match-confidence">
+                          {extractedByProduct.get(product)?.confidence}% match confidence
+                        </small>
+                      )}
+                    </td>
                     <td className="align-right"><span className="quantity-badge">{quantity}</span></td>
                   </tr>
                 ))}
@@ -253,7 +329,7 @@ export function OrderSections({ result, autoPlayAudio = false }: OrderSectionsPr
 
       <Panel eyebrow="ORDER SUMMARY" title="Invoice" className="invoice-panel">
         <div className="invoice-paper">
-          <div className="invoice-brand"><span className="invoice-brand-mark">B</span><div><strong>Bharat Bazaar</strong><span>VOICE ORDER RECEIPT</span></div></div>
+          <div className="invoice-brand"><span className="invoice-brand-mark">B</span><div><strong>{businessName || "Bharat Bazaar"}</strong><span>VOICE ORDER RECEIPT</span></div></div>
           <div className="invoice-rule" />
           {products.map(([product, quantity]) => (
             <div className="invoice-row" key={product}><span>{product}</span><strong>{quantity}</strong></div>
@@ -261,6 +337,20 @@ export function OrderSections({ result, autoPlayAudio = false }: OrderSectionsPr
           <div className="invoice-rule" />
           <div className="invoice-row invoice-total"><span>Total items</span><strong>{result.invoice.total_items}</strong></div>
         </div>
+      </Panel>
+
+      <Panel eyebrow="ORDER CORRECTIONS" title="Corrections applied" className="corrections-panel">
+        {result.corrections?.length ? (
+          <ul className="correction-list">
+            {result.corrections.map((correction, index) => (
+              <li key={`${correction.product}-${index}`}>
+                <strong>{correction.product}</strong>
+                <span>{correction.from_quantity} → {correction.to_quantity}</span>
+                <small>“{correction.command}”</small>
+              </li>
+            ))}
+          </ul>
+        ) : <EmptyState title="No corrections detected" detail="Repeated product quantities that change during speech will appear here." />}
       </Panel>
 
       <Panel eyebrow="VOICE ASSISTANT" title="Confirmation" className="confirmation-panel">
@@ -372,10 +462,25 @@ interface DemoPageProps {
   busy: boolean;
   disabled: boolean;
   result: OrderResult | null;
+  businessName: string | null;
+  currentStep: number | null;
+  progress: number;
+  failed: boolean;
+  saveState: "idle" | "saving" | "saved" | "failed";
   onRun: () => void;
 }
 
-export function DemoPage({ busy, disabled, result, onRun }: DemoPageProps) {
+export function DemoPage({
+  busy,
+  disabled,
+  result,
+  businessName,
+  currentStep,
+  progress,
+  failed,
+  saveState,
+  onRun,
+}: DemoPageProps) {
   return (
     <>
       <section className="demo-banner">
@@ -387,7 +492,18 @@ export function DemoPage({ busy, disabled, result, onRun }: DemoPageProps) {
         </div>
         <div className="demo-visual" aria-hidden="true"><span className="demo-mic"><MicIcon /></span><span className="demo-wave"><i /><i /><i /><i /><i /><i /><i /><i /><i /></span><span className="demo-visual-label">VOICE ORDER · INDIA</span></div>
       </section>
-      {result ? <OrderSections autoPlayAudio result={result} /> : (
+      {(busy || result) && (
+        <ProcessingSteps
+          active={busy}
+          businessName={businessName}
+          complete={Boolean(result)}
+          currentStep={currentStep}
+          progress={progress}
+          failed={failed}
+          saveState={saveState}
+        />
+      )}
+      {result ? <OrderSections autoPlayAudio businessName={businessName} result={result} /> : (
         <div className="demo-note"><span className="status-check"><CheckIcon /></span><span><strong>Demo audio is ready</strong><small>Click “Run the demo” to process the bundled sample order.</small></span></div>
       )}
     </>
@@ -425,8 +541,18 @@ export function Notification({ children, onDismiss }: { children: ReactNode; onD
   return <div className="toast" role="status"><span className="toast-check"><CheckIcon /></span><span>{children}</span><button aria-label="Dismiss notification" onClick={onDismiss} type="button">×</button></div>;
 }
 
-export function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () => void }) {
-  return <div className="error-banner" role="alert"><span className="error-symbol">!</span><span><strong>Something went wrong</strong><small>{message}</small></span><button aria-label="Dismiss error" onClick={onDismiss} type="button">×</button></div>;
+export function ErrorBanner({
+  message,
+  onDismiss,
+  onRetry,
+  retryLabel = "Try again",
+}: {
+  message: string;
+  onDismiss: () => void;
+  onRetry?: () => void;
+  retryLabel?: string;
+}) {
+  return <div className="error-banner" role="alert"><span className="error-symbol">!</span><span><strong>Something went wrong</strong><small>{message}</small></span>{onRetry && <button className="error-retry" onClick={onRetry} type="button">{retryLabel}</button>}<button aria-label="Dismiss error" onClick={onDismiss} type="button">×</button></div>;
 }
 
 export function PageTitle({ page }: { page: Page }) {
@@ -435,8 +561,9 @@ export function PageTitle({ page }: { page: Page }) {
     inventory: { eyebrow: "STOCK & CATALOG", title: "Inventory management", detail: "Keep products, prices, and stock ready for every order." },
     customers: { eyebrow: "CUSTOMER DIRECTORY", title: "Customer management", detail: "Keep customer contact details organized for your store." },
     orders: { eyebrow: "CUSTOMER ACTIVITY", title: "Order history", detail: "Search and review every saved voice order." },
-    analytics: { eyebrow: "RETAIL PERFORMANCE", title: "Business analytics", detail: "See order activity and what your customers buy most." },
+    analytics: { eyebrow: "RETAIL PERFORMANCE", title: "Executive dashboard", detail: "Track today’s revenue, stock health, customer base, and weekly sales trends." },
     admin: { eyebrow: "STORE OPERATIONS", title: "Retail admin", detail: "Manage inventory, review orders, and monitor store performance." },
+    settings: { eyebrow: "BUSINESS PROFILE", title: "Store settings", detail: "Keep your store name and owner contact details up to date." },
     "pilot-admin": { eyebrow: "PILOT OPERATIONS", title: "Pilot Admin", detail: "Repair verified business ownership and prepare demo stores." },
     evaluation: { eyebrow: "QUALITY ASSURANCE", title: "Evaluation dashboard", detail: "Measure cart accuracy across the bundled voice-order benchmark." },
     demo: { eyebrow: "PRODUCT WALKTHROUGH", title: "See VoiceOS in action", detail: "One sample order. The complete voice-commerce journey." },

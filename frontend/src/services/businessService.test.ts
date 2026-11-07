@@ -8,6 +8,7 @@ const { from, query, getUser } = vi.hoisted(() => {
     order: vi.fn(),
     select: vi.fn(),
     single: vi.fn(),
+    update: vi.fn(),
   };
   return {
     from: vi.fn(),
@@ -29,6 +30,7 @@ import {
   getCurrentBusiness,
   getOwnedBusiness,
   getStoredBusinessId,
+  updateBusiness,
 } from "./businessService";
 
 const userId = "auth-user-1";
@@ -65,6 +67,7 @@ describe("businessService ownership", () => {
     query.eq.mockReturnValue(query);
     query.insert.mockReturnValue(query);
     query.select.mockReturnValue(query);
+    query.update.mockReturnValue(query);
   });
 
   it("lists only businesses owned by the authenticated user", async () => {
@@ -144,6 +147,21 @@ describe("businessService ownership", () => {
 
     expect(query.eq).toHaveBeenNthCalledWith(1, "id", "business-other");
     expect(query.eq).toHaveBeenNthCalledWith(2, "owner_user_id", userId);
+  });
+
+  it("updates store profile fields only after validating ownership", async () => {
+    const updatedBusiness = { ...ownedBusiness, name: "Updated store" };
+    query.maybeSingle.mockResolvedValue({ data: ownedBusiness, error: null });
+    query.single.mockResolvedValue({ data: updatedBusiness, error: null });
+
+    await expect(updateBusiness(ownedBusiness.id, { name: "Updated store" }))
+      .resolves.toEqual(updatedBusiness);
+
+    expect(query.update).toHaveBeenCalledWith({ name: "Updated store" });
+    expect(query.eq).toHaveBeenNthCalledWith(1, "id", ownedBusiness.id);
+    expect(query.eq).toHaveBeenNthCalledWith(2, "owner_user_id", userId);
+    expect(query.eq).toHaveBeenNthCalledWith(3, "id", ownedBusiness.id);
+    expect(query.eq).toHaveBeenNthCalledWith(4, "owner_user_id", userId);
   });
 
   it("replaces a stored business ID that is not in the signed-in user's owned list", async () => {

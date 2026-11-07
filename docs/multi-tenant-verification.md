@@ -13,6 +13,12 @@
 - [x] Pilot Admin uses server-managed `app_metadata.pilot_admin` and protected database RPCs to list unassigned businesses and atomically assign verified ownership.
 - [x] Phone login is disabled unless `VITE_ENABLE_PHONE_OTP=true`; when enabled it requires a linked existing phone identity rather than creating a separate user.
 - [x] Auth diagnostics log auth state transitions, session restoration, login/signup/OTP outcomes, and the Supabase project host without logging credentials or contact details.
+- [x] Supabase sessions persist across refreshes; the optional “Remember my email” preference stores only the normalized email address, never a password.
+- [x] Signup with email confirmation disabled restores the newly created session and continues directly to first-business onboarding.
+- [x] Auth forms validate email input, show signup password strength, and provide password visibility controls and success notifications.
+- [x] Authentication debug panels are rendered only in Vite development mode.
+- [x] Inventory is searchable, filterable, sortable, paginated, and supports CSV import/export with Supabase tenant-scoped writes.
+- [x] Product images are stored as optional HTTP(S) URLs in the tenant-scoped Supabase products table; stock status distinguishes low and out-of-stock items.
 - [x] RLS policies bind each business to its authenticated `owner_user_id`, and bind products/orders/customers to an owned business.
 - [x] Legacy FastAPI inventory, order, invoice, and analytics endpoints return HTTP 410 rather than exposing shared JSON data.
 - [x] Active business selection and business-scoped service access emit a debug log containing the active business ID.
@@ -21,6 +27,7 @@
 ## Deployment and acceptance checks
 
 - [ ] Apply all migrations in `supabase/migrations/` to the Supabase project before deploying the frontend.
+- [ ] Apply `20261107000700_product_image_url.sql` before using product images or importing CSV files that include image URLs.
 - [ ] Designate pilot admin(s) with server-managed `app_metadata.pilot_admin=true`. Verify owners out of band and repair remaining businesses through the Pilot Admin screen; do not assign unknown businesses to an arbitrary account.
 - [ ] After every business has a verified owner, optionally validate `businesses_owner_user_id_required` and confirm no `owner_user_id` remains null.
 - [ ] Confirm anonymous requests cannot read or write `businesses`, `products`, or `orders`.

@@ -6,6 +6,7 @@ import {
   transcribeOrder,
   type EvaluationReport,
   type OrderResult,
+  type VoiceProcessingStep,
 } from "./api";
 import {
   DemoPage,
@@ -26,6 +27,7 @@ import {
   CustomersPage,
   InventoryPage,
   OrdersPage,
+  SettingsPage,
 } from "./components/RetailPages";
 import { StoreRegistrationPage } from "./components/StoreRegistrationPage";
 import { BusinessLoginPage } from "./components/BusinessLoginPage";
@@ -34,7 +36,15 @@ import type { Business } from "./types/business";
 import { createOrder } from "./services/orderService";
 import { getProducts } from "./services/productService";
 
-type Operation = "upload" | "demo" | "evaluation";
+type Operation = "upload" | "demo" | "evaluation" | "save";
+type SaveState = "idle" | "saving" | "saved" | "failed";
+
+const PROCESSING_STEP_INDEX: Record<VoiceProcessingStep, number> = {
+  transcribing: 1,
+  parsing: 2,
+  invoice_generation: 3,
+  audio_generation: 4,
+};
 
 function App() {
   const [page, setPage] = useState<Page>("overview");
@@ -44,9 +54,37 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [activeBusinessId, setActiveBusinessId] = useState<string | null>(null);
+  const [activeBusinessName, setActiveBusinessName] = useState<string | null>(null);
+  const [orderBusinessName, setOrderBusinessName] = useState<string | null>(null);
   const [businessesLoaded, setBusinessesLoaded] = useState(false);
   const [businessListVersion, setBusinessListVersion] = useState(0);
+  const [currentStep, setCurrentStep] = useState<number | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [processingFailed, setProcessingFailed] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [pendingSave, setPendingSave] = useState<{
+    order: OrderResult;
+    businessId: string | null;
+  } | null>(null);
+  const [retryFile, setRetryFile] = useState<File | null>(null);
   const navigateToPilotAdmin = useCallback(() => setPage("pilot-admin"), []);
+  const updateProcessingStep = useCallback((step: VoiceProcessingStep) => {
+    const stepIndex = PROCESSING_STEP_INDEX[step];
+    setCurrentStep(stepIndex);
+    setProgress(stepIndex * 20);
+  }, []);
+  const updateUploadProgress = useCallback((uploadProgress: number) => {
+    setCurrentStep(0);
+    setProgress(Math.round(uploadProgress / 5));
+  }, []);
+  const handleBusinessChange = useCallback((
+    businessId: string | null,
+    businessName: string | null,
+  ) => {
+    setActiveBusinessId(businessId);
+    setActiveBusinessName(businessName);
+  }, []);
 
   useEffect(() => {
     if (!notice) return;
@@ -56,20 +94,40 @@ function App() {
 
   async function handleUpload(file: File) {
     const businessId = activeBusinessId;
+    const businessName = activeBusinessName;
+    setOrderBusinessName(businessName);
+    setRetryFile(file);
     setPage("overview");
     setOperation("upload");
     setResult(null);
     setError(null);
+    setSaveError(null);
+    setPendingSave(null);
+    setSaveState("idle");
+    setCurrentStep(0);
+    setProgress(0);
+    setProcessingFailed(false);
     setNotice(null);
 
     try {
       if (!businessId) throw new Error("Select a store before processing a voice order.");
       const products = await getProducts(businessId);
-      const order = await transcribeOrder(file, products);
+      const order = await transcribeOrder(
+        file,
+        products,
+        updateProcessingStep,
+        updateUploadProgress,
+      );
+      setProgress(100);
       setResult(order);
-      await persistProcessedOrder(order, businessId);
-      setNotice(`Order processed from ${file.name}`);
+      setCurrentStep(null);
+      const saved = await saveProcessedOrder(order, businessId);
+      if (saved) {
+        setRetryFile(null);
+        setNotice(`Order processed and saved to ${activeBusinessName ?? "your store"}`);
+      }
     } catch (requestError) {
+      setProcessingFailed(true);
       setError(errorMessage(requestError, "We could not process and save that audio order."));
     } finally {
       setOperation(null);
@@ -77,17 +135,27 @@ function App() {
   }
 
   async function handleDemo() {
+    setOrderBusinessName(activeBusinessName);
     setOperation("demo");
     setResult(null);
     setError(null);
+    setSaveError(null);
+    setPendingSave(null);
+    setSaveState("idle");
+    setCurrentStep(1);
+    setProgress(20);
+    setProcessingFailed(false);
     setNotice(null);
 
     try {
-      const order = await runDemo();
+      const order = await runDemo(updateProcessingStep);
+      setProgress(100);
       setResult(order);
-      await persistProcessedOrder(order, activeBusinessId);
-      setNotice("Demo order processed successfully");
+      setCurrentStep(null);
+      const saved = await saveProcessedOrder(order, activeBusinessId);
+      if (saved) setNotice(`Demo order saved to ${activeBusinessName ?? "your store"}`);
     } catch (requestError) {
+      setProcessingFailed(true);
       setError(errorMessage(requestError, "The demo order could not be processed and saved."));
     } finally {
       setOperation(null);
@@ -118,14 +186,29 @@ function App() {
       <Header
         page={page}
         onNavigate={setPage}
-        onBusinessChange={setActiveBusinessId}
+        onBusinessChange={handleBusinessChange}
         onBusinessLoadComplete={setBusinessesLoaded}
         onBusinessLogin={() => setPage("business-login")}
         onPilotAdmin={navigateToPilotAdmin}
+        onNotice={setNotice}
         businessListVersion={businessListVersion}
       />
       <main className="main-content">
-        {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+        {error && (
+          <ErrorBanner
+            message={error}
+            onDismiss={() => setError(null)}
+            onRetry={retryFile ? () => { void handleUpload(retryFile); } : undefined}
+          />
+        )}
+        {saveError && (
+          <ErrorBanner
+            message={saveError}
+            onDismiss={() => setSaveError(null)}
+            onRetry={() => { void retryOrderSave(); }}
+            retryLabel="Retry save"
+          />
+        )}
 
         {page === "overview" && (
           <>
@@ -143,12 +226,17 @@ function App() {
                 onRecordingError={setError}
               />
               <ProcessingSteps
-                active={operation === "upload"}
+                active={operation === "upload" || operation === "demo"}
+                businessName={orderBusinessName}
                 complete={result !== null}
+                currentStep={currentStep}
+                progress={progress}
+                failed={processingFailed}
+                saveState={saveState}
               />
             </div>
             {result ? (
-              <OrderSections result={result} />
+              <OrderSections businessName={orderBusinessName} result={result} />
             ) : (
               <div className="welcome-strip">
                 <span className="welcome-mark">✦</span>
@@ -198,12 +286,30 @@ function App() {
           </BusinessGate>
         )}
 
+        {page === "settings" && (
+          <BusinessGate businessId={activeBusinessId} loaded={businessesLoaded}>
+            <SettingsPage
+              key={activeBusinessId ?? "no-business"}
+              onSaved={(business) => {
+                setActiveBusinessName(business.name);
+                setBusinessListVersion((version) => version + 1);
+                setNotice("Store profile updated");
+              }}
+            />
+          </BusinessGate>
+        )}
+
         {page === "demo" && (
           <DemoPage
             busy={operation === "demo"}
             disabled={operation !== null}
             onRun={handleDemo}
             result={result}
+            businessName={orderBusinessName}
+            currentStep={currentStep}
+            progress={progress}
+            failed={processingFailed}
+            saveState={saveState}
           />
         )}
 
@@ -232,6 +338,7 @@ function App() {
 
   function handleBusinessCreated(business: Business) {
     setActiveBusinessId(business.id);
+    setActiveBusinessName(business.name);
     setBusinessListVersion((version) => version + 1);
     setPage("overview");
     setNotice(`${business.name} is ready`);
@@ -239,6 +346,7 @@ function App() {
 
   function handleBusinessLogin(business: Business) {
     setActiveBusinessId(business.id);
+    setActiveBusinessName(business.name);
     setBusinessesLoaded(true);
     setBusinessListVersion((version) => version + 1);
     setPage("overview");
@@ -262,6 +370,39 @@ function App() {
       throw new Error(
         `Voice order was processed but could not be saved: ${errorMessage(saveError, "Select a store and try again.")}`,
       );
+    }
+  }
+
+  async function saveProcessedOrder(
+    order: OrderResult,
+    businessId: string | null,
+  ): Promise<boolean> {
+    setSaveState("saving");
+    setSaveError(null);
+    setPendingSave({ order, businessId });
+    try {
+      await persistProcessedOrder(order, businessId);
+      setSaveState("saved");
+      setPendingSave(null);
+      return true;
+    } catch (saveRequestError: unknown) {
+      setSaveState("failed");
+      setSaveError(errorMessage(saveRequestError, "The processed order could not be saved."));
+      return false;
+    }
+  }
+
+  async function retryOrderSave() {
+    if (!pendingSave || operation) return;
+    setOperation("save");
+    try {
+      const saved = await saveProcessedOrder(pendingSave.order, pendingSave.businessId);
+      if (saved) {
+        setSaveError(null);
+        setNotice(`Order saved to ${orderBusinessName ?? "your store"}`);
+      }
+    } finally {
+      setOperation(null);
     }
   }
 }

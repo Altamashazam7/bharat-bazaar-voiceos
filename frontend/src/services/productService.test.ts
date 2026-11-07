@@ -29,6 +29,7 @@ vi.mock("./businessService", () => ({
 
 import {
   createProduct,
+  createProducts,
   deleteProduct,
   getProducts,
   updateProduct,
@@ -79,6 +80,43 @@ describe("productService tenant scoping", () => {
       business_id: businessId,
     });
     expect(query.select).toHaveBeenCalledWith("*");
+  });
+
+  it("bulk imports products into the active business without accepting foreign business IDs", async () => {
+    const imported = [
+      { name: "Tea", category: "Grocery", unit: "packet", price_paise: 2500, stock: 12 },
+      { name: "Rice", category: "Grocery", unit: "kg", price_paise: 8000, stock: 3 },
+    ];
+    query.select.mockResolvedValue({
+      data: imported.map((product) => ({ ...product, business_id: businessId })),
+      error: null,
+    });
+
+    await expect(createProducts(imported)).resolves.toHaveLength(2);
+    expect(from).toHaveBeenCalledWith("products");
+    expect(query.insert).toHaveBeenCalledWith(imported.map((product) => ({
+      ...product,
+      business_id: businessId,
+    })));
+    expect(query.select).toHaveBeenCalledWith("*");
+  });
+
+  it("propagates Supabase errors from inventory imports", async () => {
+    const databaseError = new Error("import denied");
+    query.select.mockResolvedValue({ data: null, error: databaseError });
+
+    await expect(createProducts([{
+      name: "Tea",
+      category: "Grocery",
+      unit: "packet",
+      price_paise: 2500,
+      stock: 12,
+    }])).rejects.toBe(databaseError);
+  });
+
+  it("does not issue a Supabase insert for an empty import", async () => {
+    await expect(createProducts([])).resolves.toEqual([]);
+    expect(from).not.toHaveBeenCalled();
   });
 
   it("updates products only within the active business", async () => {

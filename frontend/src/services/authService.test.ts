@@ -44,6 +44,18 @@ describe("authService", () => {
     });
   });
 
+  it("reports when signup returns an active session because confirmation is disabled", async () => {
+    const user = { id: "auth-user-1", email: "retailer@example.com" };
+    const session = { access_token: "test-token", user };
+    auth.signUp.mockResolvedValue({
+      data: { session, user },
+      error: null,
+    });
+
+    await expect(signUpWithEmail("retailer@example.com", "password123"))
+      .resolves.toEqual({ confirmationRequired: false });
+  });
+
   it("normalizes email on password login and returns the restored session", async () => {
     const user = { id: "auth-user-1", email: "retailer@example.com" };
     const session = { access_token: "test-token", user };

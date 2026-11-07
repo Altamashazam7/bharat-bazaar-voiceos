@@ -26,6 +26,17 @@ export async function createProduct(input: ProductInput): Promise<Product> {
   return data as Product;
 }
 
+export async function createProducts(inputs: ProductInput[]): Promise<Product[]> {
+  if (!inputs.length) return [];
+  const business = await getCurrentBusiness();
+  const { data, error } = await supabase
+    .from("products")
+    .insert(inputs.map((input) => ({ ...input, business_id: business.id })))
+    .select("*");
+  if (error) throw error;
+  return data as Product[];
+}
+
 export async function updateProduct(
   productId: string,
   changes: Partial<ProductInput>,

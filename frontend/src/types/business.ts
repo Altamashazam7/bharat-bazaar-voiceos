@@ -16,6 +16,7 @@ export interface Product {
   unit: string;
   price_paise: number;
   stock: number;
+  image_url?: string | null;
 }
 
 export type BusinessInput = Omit<Business, "id" | "created_at" | "owner_user_id">;
